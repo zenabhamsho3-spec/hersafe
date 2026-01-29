@@ -1,18 +1,28 @@
 package com.example.hersafe.utils;
 
+import android.Manifest;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Build;
 import android.telephony.SmsManager;
 import android.util.Log;
+import android.widget.Toast;
+
+import androidx.core.app.ActivityCompat;
 
 import com.example.hersafe.data.local.AppDatabase;
 import com.example.hersafe.data.local.dao.ContactDao;
 import com.example.hersafe.data.local.dao.IncidentDao;
 import com.example.hersafe.data.local.entities.Contact;
 import com.example.hersafe.data.local.entities.Incident;
+import com.example.hersafe.service.VideoRecordingService;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
+import com.google.android.gms.tasks.CancellationTokenSource;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -23,141 +33,162 @@ public class SosHelper {
     private static final String TAG = "SosHelper";
 
     /**
-     * Sends emergency alert to all contacts in background thread to avoid UI blocking (for DB ops).
+     * Unified method to trigger SOS:
+     * 1. Get Location (if not provided).
+     * 2. Send SMS to all contacts ("احتاج مساعدة فورية " + Location Link).
+     * 3. Start Background Video Recording (which uploads to Telegram).
      */
-    public static void sendEmergencyAlert(Context context, Location currentLocation, Runnable onComplete) {
-        Log.d(TAG, "========== sendEmergencyAlert STARTED ==========");
+    public static void triggerSos(Context context) {
+        Log.d(TAG, "========== TRIGGER SOS STARTED ==========");
         
-        // Show immediate feedback to user
-        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
-            android.widget.Toast.makeText(context, "جاري إرسال رسائل الطوارئ...", android.widget.Toast.LENGTH_SHORT).show()
-        );
+        // 1. Show User Feedback
+        showToast(context, "⚠️ جاري إرسال الاستغاثة وتسجيل الفيديو... ⚠️");
         
+        // 2. Start Video Recording Service IMMEDIATELY
+        startVideoService(context);
+
+        // 3. Process Location and SMS in Background
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
             try {
-                Log.d(TAG, "Getting database instance...");
-                AppDatabase db = AppDatabase.getInstance(context);
-                ContactDao contactDao = db.contactDao();
-                IncidentDao incidentDao = db.incidentDao();
-
-                Log.d(TAG, "Fetching contacts from database...");
-                List<Contact> contacts = contactDao.getAllContacts();
-
-                if (contacts == null || contacts.isEmpty()) {
-                    Log.e(TAG, "❌ NO CONTACTS FOUND IN DATABASE!");
-                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
-                        android.widget.Toast.makeText(context, "❌ لا توجد جهات اتصال! الرجاء إضافة جهات طوارئ أولاً", android.widget.Toast.LENGTH_LONG).show()
-                    );
-                    saveIncident(incidentDao, currentLocation, "Failed - No Contacts");
-                    if (onComplete != null) {
-                        new android.os.Handler(android.os.Looper.getMainLooper()).post(onComplete);
-                    }
-                    return;
-                }
-
-                Log.d(TAG, "✓ Found " + contacts.size() + " contacts");
-
-                // Prepare Data
-                String alertText = "سلامتك غالية ..ثقي بحدسك واحمي وجودك";
-                String locationUrl = "";
-
-                if (currentLocation != null) {
-                    double lat = currentLocation.getLatitude();
-                    double lng = currentLocation.getLongitude();
-                    locationUrl = "Loc: http://maps.google.com/?q=" + lat + "%2C" + lng;
-                    Log.d(TAG, "Location available: " + lat + ", " + lng);
-                } else {
-                    Log.w(TAG, "No location available");
-                }
-
-                // Get SMS Manager
-                Log.d(TAG, "Getting SmsManager...");
-                SmsManager smsManager;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    smsManager = context.getSystemService(SmsManager.class);
-                } else {
-                    smsManager = SmsManager.getDefault();
-                }
-
-                if (smsManager == null) {
-                    Log.e(TAG, "❌ SmsManager is NULL!");
-                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
-                        android.widget.Toast.makeText(context, "❌ خطأ: لا يمكن الوصول لخدمة الرسائل", android.widget.Toast.LENGTH_LONG).show()
-                    );
-                    saveIncident(incidentDao, currentLocation, "Failed - No SmsManager");
-                    if (onComplete != null) {
-                        new android.os.Handler(android.os.Looper.getMainLooper()).post(onComplete);
-                    }
-                    return;
-                }
+                // Try to get location if we don't have it passed in (we'll fetch it here)
+                Location location = fetchCurrentLocation(context);
                 
-                Log.d(TAG, "✓ SmsManager obtained successfully");
-
-                int sentCount = 0;
-                for (Contact contact : contacts) {
-                    try {
-                        String originalPhone = contact.getPhone();
-                        String formattedPhone = formatPhoneNumber(originalPhone);
-                        
-                        Log.d(TAG, "Sending to: " + contact.getName() + " | Original: " + originalPhone + " | Formatted: " + formattedPhone);
-                        
-                        // 1. Send Text
-                        Intent sentIntentAction1 = new Intent("SMS_SENT");
-                        sentIntentAction1.putExtra("phone_number", formattedPhone);
-                        PendingIntent sentIntent1 = PendingIntent.getBroadcast(
-                                context,
-                                (int) System.currentTimeMillis() + sentCount,
-                                sentIntentAction1,
-                                PendingIntent.FLAG_IMMUTABLE
-                        );
-                        smsManager.sendTextMessage(formattedPhone, null, alertText, sentIntent1, null);
-                        Log.d(TAG, "✓ Alert message sent to: " + formattedPhone);
-                        sentCount++;
-
-                        // 2. Send Location
-                        if (!locationUrl.isEmpty()) {
-                            Intent sentIntentAction2 = new Intent("SMS_SENT");
-                            sentIntentAction2.putExtra("phone_number", formattedPhone);
-                            PendingIntent sentIntent2 = PendingIntent.getBroadcast(
-                                    context,
-                                    (int) System.currentTimeMillis() + sentCount + 1000,
-                                    sentIntentAction2,
-                                    PendingIntent.FLAG_IMMUTABLE
-                            );
-                            smsManager.sendTextMessage(formattedPhone, null, locationUrl, sentIntent2, null);
-                            Log.d(TAG, "✓ Location message sent to: " + formattedPhone);
-                        }
-
-                    } catch (Exception e) {
-                        Log.e(TAG, "❌ Failed to send to " + contact.getPhone() + ": " + e.getMessage(), e);
-                    }
-                }
-
-                Log.d(TAG, "========== SMS SEND COMPLETE: " + sentCount + " messages sent ==========");
+                // Send SMS
+                sendSmsToContacts(context, location);
                 
-                final int finalSentCount = sentCount;
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
-                    android.widget.Toast.makeText(context, "✅ تم إرسال " + finalSentCount + " رسالة طوارئ", android.widget.Toast.LENGTH_LONG).show()
-                );
-
-                if (sentCount > 0) {
-                    saveIncident(incidentDao, currentLocation, "Sent");
-                } else {
-                    saveIncident(incidentDao, currentLocation, "Failed");
-                }
-
             } catch (Exception e) {
-                Log.e(TAG, "❌ CRITICAL ERROR in sendEmergencyAlert: " + e.getMessage(), e);
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
-                    android.widget.Toast.makeText(context, "❌ خطأ في إرسال الرسائل: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show()
-                );
-            } finally {
-                if (onComplete != null) {
-                    new android.os.Handler(android.os.Looper.getMainLooper()).post(onComplete);
-                }
+                Log.e(TAG, "Error in SOS background task", e);
             }
         });
+    }
+
+    private static void startVideoService(Context context) {
+        try {
+            Intent videoIntent = new Intent(context, VideoRecordingService.class);
+            videoIntent.setAction("START");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(videoIntent);
+            } else {
+                context.startService(videoIntent);
+            }
+            Log.d(TAG, "VideoRecordingService started.");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to start video service", e);
+        }
+    }
+
+    private static Location fetchCurrentLocation(Context context) {
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "Location permission missing.");
+            return null;
+        }
+
+        try {
+            FusedLocationProviderClient fusedClient = LocationServices.getFusedLocationProviderClient(context);
+            CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+            
+            // Try to get high accuracy location urgently
+            Location location = com.google.android.gms.tasks.Tasks.await(
+                    fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cancellationTokenSource.getToken())
+            );
+            
+            if (location != null) {
+                Log.d(TAG, "Location fetched internal: " + location.getLatitude() + "," + location.getLongitude());
+                return location;
+            }
+            
+            // Fallback to last known
+            location = com.google.android.gms.tasks.Tasks.await(fusedClient.getLastLocation());
+            return location;
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to fetch location internal", e);
+            return null;
+        }
+    }
+
+    private static void sendSmsToContacts(Context context, Location currentLocation) {
+        Log.d(TAG, "Preparing to send SMS...");
+        
+        AppDatabase db = AppDatabase.getInstance(context);
+        ContactDao contactDao = db.contactDao();
+        IncidentDao incidentDao = db.incidentDao();
+
+        List<Contact> contacts = contactDao.getAllContacts();
+
+        if (contacts == null || contacts.isEmpty()) {
+            Log.e(TAG, "❌ NO CONTACTS FOUND!");
+            showToast(context, "❌ لا توجد جهات اتصال! الرجاء إضافة جهات طوارئ");
+            saveIncident(incidentDao, currentLocation, "Failed - No Contacts");
+            return;
+        }
+
+        // Prepare Message: "احتاج مساعدة فورية "
+        String baseMessage = "احتاج مساعدة فورية ";
+        String locationUrl = "";
+
+        if (currentLocation != null) {
+            double lat = currentLocation.getLatitude();
+            double lng = currentLocation.getLongitude();
+            locationUrl = "\nموقعي: http://maps.google.com/?q=" + lat + "%2C" + lng;
+        } else {
+            locationUrl = "\n(الموقع غير متوفر)";
+        }
+
+        String fullMessage = baseMessage + locationUrl;
+
+        // Get SmsManager
+        SmsManager smsManager;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            smsManager = context.getSystemService(SmsManager.class);
+        } else {
+            smsManager = SmsManager.getDefault();
+        }
+
+        if (smsManager == null) {
+            showToast(context, "❌ خطأ: خدمة الرسائل غير متاحة");
+            return;
+        }
+
+        int sentCount = 0;
+        for (Contact contact : contacts) {
+            try {
+                String formattedPhone = formatPhoneNumber(contact.getPhone());
+                
+                // Use Multipart to handle long messages properly (Arabic + URL can be long)
+                java.util.ArrayList<String> parts = smsManager.divideMessage(fullMessage);
+                
+                java.util.ArrayList<PendingIntent> sentIntents = new java.util.ArrayList<>();
+                
+                for (int i = 0; i < parts.size(); i++) {
+                     Intent sentIntentAction = new Intent("SMS_SENT");
+                     sentIntentAction.putExtra("phone_number", formattedPhone);
+                     PendingIntent sentIntent = PendingIntent.getBroadcast(
+                            context,
+                            (int) System.currentTimeMillis() + sentCount + i,
+                            sentIntentAction,
+                            PendingIntent.FLAG_IMMUTABLE
+                     );
+                     sentIntents.add(sentIntent);
+                }
+
+                smsManager.sendMultipartTextMessage(formattedPhone, null, parts, sentIntents, null);
+                Log.d(TAG, "✓ Alert sent to: " + formattedPhone);
+                sentCount++;
+
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Failed to send to " + contact.getPhone(), e);
+            }
+        }
+
+        if (sentCount > 0) {
+            showToast(context, "✅ تم إرسال طلب المساعدة لـ " + sentCount + " جهات");
+            saveIncident(incidentDao, currentLocation, "Sent");
+        } else {
+            saveIncident(incidentDao, currentLocation, "Failed");
+        }
     }
 
     private static void saveIncident(IncidentDao dao, Location location, String status) {
@@ -172,6 +203,12 @@ public class SosHelper {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private static void showToast(Context context, String message) {
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        );
     }
 
     private static String formatPhoneNumber(String phone) {

@@ -103,63 +103,11 @@ public class VolumeButtonService extends Service {
     }
 
     private void triggerSos() {
+        Log.d(TAG, "Triggering SOS via Helper...");
         vibrate(1000); // 1 second vibration
         
-        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
-            Toast.makeText(getApplicationContext(), "⚠️ SOS TRIGGERED! ⚠️", Toast.LENGTH_LONG).show()
-        );
-
-        // Check SMS Permission first
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
-            Log.e(TAG, "SEND_SMS Permission NOT granted!");
-            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
-                Toast.makeText(getApplicationContext(), "خطأ: لم يتم منح إذن الرسائل!", Toast.LENGTH_LONG).show()
-            );
-            // Still start video even without SMS
-            startVideoRecording();
-            return;
-        }
-        
-        Log.d(TAG, "SEND_SMS Permission OK. Proceeding...");
-
-        // 1. Get Location & Send SMS
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            Log.d(TAG, "Location Permission OK. Getting location...");
-            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-                .addOnSuccessListener(location -> {
-                    Log.d(TAG, "Location found: " + location);
-                    sendSmsAndNotify(location);
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to get location", e);
-                    sendSmsAndNotify(null); // Send SMS without location
-                });
-        } else {
-            Log.w(TAG, "No Location Permission. Sending SMS without location.");
-            sendSmsAndNotify(null);
-        }
-
-        // 2. Start Video Recording
-        startVideoRecording();
-    }
-    
-    private void sendSmsAndNotify(android.location.Location location) {
-        Log.d(TAG, "sendSmsAndNotify called. Location: " + location);
-        SosHelper.sendEmergencyAlert(VolumeButtonService.this, location, () -> {
-            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
-                Toast.makeText(getApplicationContext(), "✅ تم إرسال رسائل الطوارئ!", Toast.LENGTH_LONG).show()
-            );
-        });
-    }
-    
-    private void startVideoRecording() {
-        Intent videoIntent = new Intent(this, VideoRecordingService.class);
-        videoIntent.setAction("START");
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            startForegroundService(videoIntent);
-        } else {
-            startService(videoIntent);
-        }
+        // Unified Logic via Helper
+        SosHelper.triggerSos(this);
     }
     
     private void vibrate(long duration) {
@@ -168,6 +116,8 @@ public class VolumeButtonService extends Service {
             v.vibrate(duration);
         }
     }
+    
+
     
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

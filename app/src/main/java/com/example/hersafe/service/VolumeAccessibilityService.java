@@ -96,19 +96,8 @@ public class VolumeAccessibilityService extends AccessibilityService {
     }
 
     private void triggerSos() {
-        showToast("⚠️ جاري إرسال الاستغاثة وتسجيل الفيديو... ⚠️");
-
-        // 1. Send SMS (Logic in Helper)
-        SosHelper.sendEmergencyAlert(this, null, null);
-
-        // 2. Start Video Recording Service
-        Intent videoIntent = new Intent(this, VideoRecordingService.class);
-        videoIntent.setAction("START");
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            startForegroundService(videoIntent);
-        } else {
-            startService(videoIntent);
-        }
+        // Unified Logic: Delegates entirely to SosHelper
+        SosHelper.triggerSos(getApplicationContext());
     }
 
     private void showToast(String message) {

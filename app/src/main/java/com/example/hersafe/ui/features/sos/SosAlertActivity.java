@@ -219,6 +219,9 @@ public class SosAlertActivity extends AppCompatActivity {
     /**
      * إرسال تنبيه الطوارئ لجميع جهات الاتصال
      */
+    /**
+     * إرسال تنبيه الطوارئ لجميع جهات الاتصال
+     */
     private void sendEmergencyAlert() {
         Log.d(TAG, "sendEmergencyAlert() called");
         
@@ -230,19 +233,9 @@ public class SosAlertActivity extends AppCompatActivity {
             return;
         }
 
-        // 1. Send SMS via Helper
-        com.example.hersafe.utils.SosHelper.sendEmergencyAlert(this, currentLocation, () -> {
-            Toast.makeText(SosAlertActivity.this, "تم إرسال التنبيه لجهات الاتصال", Toast.LENGTH_SHORT).show();
-        });
-        
-        // 2. Start Video Recording Service
-        Intent serviceIntent = new Intent(this, com.example.hersafe.service.VideoRecordingService.class);
-        serviceIntent.setAction("START");
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent);
-        } else {
-            startService(serviceIntent);
-        }
+        // Unified Logic via Helper
+        // Helper handles: SMS, Location, Video, Telegram
+        com.example.hersafe.utils.SosHelper.triggerSos(this);
 
         finish();
     }

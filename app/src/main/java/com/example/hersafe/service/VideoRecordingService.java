@@ -103,6 +103,12 @@ public class VideoRecordingService extends LifecycleService {
                 stopRecording();
                 stopSelf();
             } else {
+                // منع البدء المتكرر إذا كان التسجيل جارياً بالفعل
+                if (isRecording) {
+                    Log.d(TAG, "التسجيل جارٍ بالفعل، سيتم تجاهل الطلب الجديد.");
+                    return START_NOT_STICKY;
+                }
+                
                 startForeground(NOTIFICATION_ID, createNotification());
                 startCamera();
             }
@@ -155,8 +161,10 @@ public class VideoRecordingService extends LifecycleService {
 
         // 1. Cancel previous recording logic if overlapping
         if (recording != null) {
+            Log.w(TAG, "هناك تسجیل قید العمل بالفعل. سیقوم النظام بإیقافه قبل البدء من جدید.");
             recording.stop();
             recording = null;
+            // Note: CameraX recording stop is async. We should ideally wait or handle state.
         }
 
         // 2. Notify UI that recording started
@@ -204,10 +212,11 @@ public class VideoRecordingService extends LifecycleService {
                         // Clear current recording reference
                         recording = null;
                         
-                        // LOOP LOGIC: If service is still running and we want to record, start next segment
+                        // LOOP LOGIC: If service is still running AND user still wants recording
                         if (isServiceRunning && isRecording) {
-                             Log.d(TAG, "Starting next segment...");
-                             startRecording();
+                             Log.d(TAG, "بدء مقطع جدید...");
+                             // Delay a bit to ensure the previous recording session fully releases
+                             handler.postDelayed(this::startRecording, 500); 
                         }
                     }
                 });
