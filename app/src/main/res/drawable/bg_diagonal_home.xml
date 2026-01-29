@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="1080dp"
+    android:height="1920dp"
+    android:viewportWidth="1080"
+    android:viewportHeight="1920">
+
+    <!-- الخلفية البيضاء الكاملة -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M0,0h1080v1920h-1080z" />
+
+    <!-- المثلث الزهري في الأسفل (الشكل المائل) -->
+    <!-- يبدأ من اليسار عند ارتفاع 1100 ويصعد لليمين عند 800 -->
+    <path
+        android:fillColor="#D48B9B"
+        android:pathData="M0,1100 L1080,800 L1080,1920 L0,1920 Z" />
+</vector>

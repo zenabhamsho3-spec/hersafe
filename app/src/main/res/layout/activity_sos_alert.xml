@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/sos_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_sos_gradient"
+    android:keepScreenOn="true"> <!-- يبقي الشاشة مضاءة دائماً -->
+
+    <!-- ======================================== -->
+    <!-- العناصر المخفية (تعمل في الخلفية) -->
+    <!-- ======================================== -->
+
+    <!-- 1. الكاميرا (TextureView) -->
+    <!-- نضعها بحجم صغير جداً أو Invisible حسب طريقة برمجتك للكاميرا -->
+    <TextureView
+        android:id="@+id/cameraPreview"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:visibility="invisible"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- 2. عداد وقت التسجيل -->
+    <Chronometer
+        android:id="@+id/chronometer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="invisible"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+
+    <!-- ======================================== -->
+    <!-- العناصر الظاهرة (UI) -->
+    <!-- ======================================== -->
+
+    <!-- أيقونة تنبيه علوية -->
+    <ImageView
+        android:id="@+id/imgWarning"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_marginTop="60dp"
+        android:src="@drawable/ic_warning_history"
+        app:tint="@color/white"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/sos_title"
+        android:textColor="@color/white"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/imgWarning" />
+
+    <TextView
+        android:id="@+id/tvSubtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/sos_subtitle"
+        android:textColor="#E0E0E0"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvTitle" />
+
+    <!-- دائرة العداد التنازلي -->
+    <!-- يمكنك تطبيق Animation برمجياً على هذا العنصر ليبدو نابضاً -->
+    <FrameLayout
+        android:id="@+id/timerContainer"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:background="@drawable/bg_circle_transparent"
+        app:layout_constraintBottom_toTopOf="@+id/btnCancel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvSubtitle">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <!-- الرقم الكبير (5) -->
+            <TextView
+                android:id="@+id/tvCountDown"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="5"
+                android:textColor="@color/white"
+                android:textSize="80sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/sos_seconds"
+                android:textColor="@color/white"
+                android:textSize="18sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- زر إلغاء (الأكبر والأكثر وضوحاً في الأسفل) -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCancel"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="24dp"
+        android:backgroundTint="@color/white"
+        android:text="@string/btn_im_safe"
+        android:textColor="#D32F2F"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:cornerRadius="32dp"
+        app:icon="@drawable/ic_close"
+        app:iconTint="#D32F2F"
+        app:iconGravity="textStart"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <!-- زر إرسال فوراً -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSendNow"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:text="@string/btn_send_now"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        app:icon="@drawable/ic_send_now"
+        app:iconTint="@color/white"
+        app:layout_constraintBottom_toTopOf="@+id/btnCancel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp"
+    android:height="400dp"
+    android:viewportWidth="360"
+    android:viewportHeight="400">
+    <!-- رسم الشكل المائل: يبدأ من اليسار (ارتفاع 150) ويصعد لليمين (ارتفاع 0) -->
+    <path
+        android:fillColor="@color/hersafe_pink"
+        android:pathData="M0,120 L360,0 L360,400 L0,400 Z" />
+</vector>

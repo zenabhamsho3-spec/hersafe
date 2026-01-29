@@ -1,0 +1,349 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/main"
+    android:background="@color/white"
+    android:layoutDirection="rtl">
+
+    <!-- 1. الهيدر (العنوان) -->
+    <TextView
+        android:id="@+id/tvHeaderTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:text="@string/journey_title"
+        android:textColor="@color/hersafe_title"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tvHeaderSub"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/journey_subtitle"
+        android:textColor="#757575"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvHeaderTitle" />
+
+    <!-- صورة توضيحية أو مساحة للخريطة -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/mapPlaceholderCard"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_margin="24dp"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@color/map_placeholder_bg"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvHeaderSub">
+
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/map"
+            android:name="com.google.android.gms.maps.SupportMapFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+
+    <!-- ======================================= -->
+    <!--  المجموعة 1: قبل بدء الرحلة (Setup UI)  -->
+    <!-- ======================================= -->
+
+    <!-- بطاقة البحث وجهة الوصول -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardSearch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
+        app:layout_constraintBottom_toTopOf="@+id/cardModeSelect">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_location_pin"
+                    app:tint="@color/hersafe_title"
+                    android:layout_marginEnd="8dp"/>
+
+                <EditText
+                    android:id="@+id/etDestination"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="إلى أين تذهبين؟"
+                    android:background="@null"
+                    android:textColor="@color/black"
+                    android:textColorHint="#9E9E9E"
+                    android:textSize="16sp"
+                    android:inputType="text"
+                    android:imeOptions="actionSearch"
+                    android:maxLines="1"/>
+
+                <ImageButton
+                    android:id="@+id/btnSearch"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@android:drawable/ic_menu_search"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    app:tint="@color/hersafe_title" />
+            </LinearLayout>
+            
+            <TextView
+                android:id="@+id/tvDuration"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="@color/hersafe_pink"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                tools:visibility="visible"
+                tools:text="المدة المتوقعة: 15 دقيقة (سيارة)"/>
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- بطاقة اختيار وسيلة النقل -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardModeSelect"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
+        app:layout_constraintBottom_toTopOf="@+id/cardContactSelect">
+
+        <RadioGroup
+            android:id="@+id/rgModes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp"
+            android:gravity="center">
+
+            <RadioButton
+                android:id="@+id/rbDriving"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="سيارة"
+                android:checked="true"
+                android:layout_weight="1"/>
+
+            <RadioButton
+                android:id="@+id/rbWalking"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="مشي"
+                android:layout_weight="1"/>
+
+            <RadioButton
+                android:id="@+id/rbTransit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="مواصلات"
+                android:layout_weight="1"/>
+        </RadioGroup>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- بطاقة اختيار جهة الاتصال -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardContactSelect"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="24dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
+        app:layout_constraintBottom_toTopOf="@+id/btnStartTrip">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="اختاري جهة اتصال لمشاركة الرحلة:"
+                android:textColor="@color/hersafe_title"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp"/>
+
+            <Spinner
+                android:id="@+id/spinnerContacts"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:spinnerMode="dropdown"/>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- زر بدء الرحلة -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnStartTrip"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="32dp"
+        android:backgroundTint="@color/hersafe_title"
+        android:text="@string/btn_start_journey"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:cornerRadius="30dp"
+        app:icon="@drawable/ic_navigation_arrow"
+        app:iconGravity="textStart"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <!-- تجميع عناصر البداية للتحكم في إخفائها لاحقاً -->
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/groupSetup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="visible"
+        app:constraint_referenced_ids="cardSearch,cardModeSelect,cardContactSelect,btnStartTrip" />
+
+
+    <!-- ======================================== -->
+    <!--  المجموعة 2: أثناء الرحلة (Active UI)   -->
+    <!-- ======================================== -->
+
+    <!-- بطاقة المعلومات (وقت الوصول) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardActiveTrip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="6dp"
+        app:cardBackgroundColor="@color/white"
+        app:strokeColor="@color/hersafe_pink_bg"
+        app:strokeWidth="1dp"
+        app:layout_constraintBottom_toTopOf="@+id/btnArrivedSafe">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/tvTrackingStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/status_tracking"
+                android:textColor="@color/hersafe_title"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:drawableStart="@drawable/ic_navigation_arrow"
+                android:drawableTint="@color/hersafe_title"
+                android:drawablePadding="8dp"/>
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F0F0" android:layout_marginVertical="12dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/label_eta"
+                android:textColor="#757575"
+                android:textSize="14sp"/>
+
+            <TextView
+                android:id="@+id/tvLiveEta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="جارٍ الحساب..."
+                android:textColor="@color/hersafe_title"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- زر وصلت بأمان -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnArrivedSafe"
+        android:layout_width="0dp"
+        android:layout_height="60dp"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="32dp"
+        android:text="@string/btn_arrived_safe"
+        android:textSize="16sp"
+        android:backgroundTint="@color/safe_green"
+        app:cornerRadius="16dp"
+        app:icon="@drawable/ic_check_circle"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/btnDanger"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintHorizontal_weight="2"/>
+
+    <!-- زر خطر -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnDanger"
+        android:layout_width="0dp"
+        android:layout_height="60dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="32dp"
+        android:text="@string/btn_danger"
+        android:textSize="16sp"
+        android:backgroundTint="@color/danger_red"
+        app:cornerRadius="16dp"
+        app:icon="@drawable/ic_alert_triangle"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/btnArrivedSafe"
+        app:layout_constraintHorizontal_weight="1"/>
+
+    <!-- زر الاستعادة (أيقونة مصغرة) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabRestore"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="24dp"
+        android:src="@drawable/ic_location_pin"
+        app:tint="@color/white"
+        app:backgroundTint="@color/hersafe_title"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/tvHeaderSub"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- تجميع عناصر الرحلة النشطة (مخفية في البداية) -->
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/groupActiveTrip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:constraint_referenced_ids="cardActiveTrip,btnArrivedSafe,btnDanger" />
+    <!-- visibility="gone" يعني أنها مخفية عند بدء التشغيل -->
+
+</androidx.constraintlayout.widget.ConstraintLayout>

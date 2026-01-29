@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:fillViewport="true">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/main"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="24dp"
+        tools:context=".MainActivity2">
+
+        <!-- 1. الشعار (Logo) -->
+        <ImageView
+            android:id="@+id/logo"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_marginTop="40dp"
+            android:src="@drawable/logo"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- 2. عنوان الصفحة Login -->
+        <TextView
+            android:id="@+id/tvLoginTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:fontFamily="sans-serif"
+            android:text="@string/login_title"
+            android:textColor="@color/hersafe_text"
+            android:textSize="32sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/logo" />
+
+        <!-- 3. حقل البريد الإلكتروني -->
+        <!-- drawableStart: لوضع الأيقونة في البداية -->
+        <!-- drawableTint: لتلوين الأيقونة بنفس لون الإطار -->
+        <EditText
+            android:id="@+id/etEmail"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:layout_marginTop="40dp"
+            android:background="@drawable/bg_edittext_rounded"
+            android:drawableStart="@android:drawable/ic_menu_edit"
+            android:drawablePadding="12dp"
+            android:drawableTint="@color/hersafe_text"
+            android:hint="@string/hint_email"
+            android:inputType="textEmailAddress"
+            android:maxLines="1"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:textColor="@color/black"
+            android:textColorHint="@color/hersafe_hint"
+            app:layout_constraintTop_toBottomOf="@id/tvLoginTitle"
+            tools:layout_editor_absoluteX="24dp" />
+
+        <!-- 4. حقل كلمة المرور -->
+        <EditText
+            android:id="@+id/etPassword"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/bg_edittext_rounded"
+            android:drawableStart="@drawable/ic_lock"
+            android:drawablePadding="12dp"
+            android:drawableTint="@color/hersafe_text"
+            android:gravity="center|right"
+            android:hint="@string/hint_password"
+            android:inputType="textPassword"
+            android:maxLines="1"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:textColor="@color/black"
+            android:textColorHint="@color/hersafe_hint"
+            app:layout_constraintTop_toBottomOf="@id/etEmail"
+            tools:layout_editor_absoluteX="24dp" />
+
+        <!-- 5. زر تسجيل الدخول -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btSignin"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:layout_marginTop="30dp"
+            android:background="@drawable/bg_button_rounded"
+            android:text="@string/btn_login"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:elevation="4dp"
+            android:stateListAnimator="@null"
+            app:layout_constraintTop_toBottomOf="@id/etPassword" />
+
+        <!-- 6. نص إنشاء حساب جديد -->
+        <TextView
+            android:id="@+id/tvSignUp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/signup_prompt"
+            android:textColor="@color/hersafe_text"
+            android:textSize="14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/btSignin" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>

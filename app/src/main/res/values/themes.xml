@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- استخدام ثيم Material 3 الحديث -->
+    <style name="Theme.HerSafe" parent="Theme.Material3.Light.NoActionBar">
+        <!-- الألوان -->
+        <item name="colorPrimary">@color/primaryColor</item>
+        <item name="colorSecondary">@color/secondaryColor</item>
+        <item name="android:statusBarColor">@color/primaryDarkColor</item>
+
+        <!-- تخصيص ألوان النصوص والعناصر لتتناسب مع التصميم -->
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorOnSecondary">@color/white</item>
+    </style>
+
+    <!-- ستايل الحقول (تم التحديث ليدعم Material 3) -->
+    <!-- لاحظ التغيير من OutlineBox إلى OutlinedBox -->
+    <style name="Widget.HerSafe.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">12dp</item>
+        <item name="boxCornerRadiusTopEnd">12dp</item>
+        <item name="boxCornerRadiusBottomStart">12dp</item>
+        <item name="boxCornerRadiusBottomEnd">12dp</item>
+
+        <!-- لون الإطار -->
+        <item name="boxStrokeColor">@color/primaryColor</item>
+        <!-- لون النص التلميحي -->
+        <item name="android:textColorHint">@color/primaryColor</item>
+        <item name="hintTextColor">@color/primaryColor</item>
+
+    </style>
+
+    <style name="CircleImageStyle">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+</resources>

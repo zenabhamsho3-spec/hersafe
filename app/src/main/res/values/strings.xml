@@ -1,0 +1,118 @@
+<resources>
+    <!-- الأسماء الأساسية -->
+    <string name="app_name">HerSafe</string>
+    <string name="splash_text">HerSafe | أمانكِ غايتنا</string>
+
+    <!-- شاشة الترحيب (Welcome) -->
+    <string name="welcome_title">أهلاً بكِ</string>
+    <string name="welcome_description">تطبيق HerSafe هو درع الأمان الخاص بكِ. صُمم هذا التطبيق لضمان حمايتكِ وسلامتكِ في جميع الأوقات. كوني مطمئنة وإيجابية معنا.</string>
+
+    <!-- شاشات الدخول والإنشاء -->
+    <string name="create_account_title">إنشاء حساب جديد</string>
+    <string name="login_title">تسجيل الدخول</string>
+    <string name="hint_email">اسم المستخدم أو البريد</string>
+    <string name="hint_password">كلمة المرور</string>
+    <string name="btn_login">دخول</string>
+    <string name="signup_prompt">ليس لديكِ حساب؟ اشترك الآن</string>
+
+    <!-- بيانات المستخدم -->
+    <string name="first_name">الاسم الأول</string>
+    <string name="last_name">الاسم الأخير</string>
+    <string name="phone_number">رقم الهاتف</string>
+    <string name="email">البريد الإلكتروني</string>
+    <string name="birth_date">تاريخ الميلاد</string>
+    <string name="gender_male">ذكر</string>
+    <string name="gender_female">أنثى</string>
+    <string name="residence">مكان الإقامة</string>
+    <string name="father_name">اسم الأب</string>
+    <string name="mother_name">اسم الأم</string>
+    <string name="password">كلمة المرور</string>
+    <string name="confirm_password">تأكيد كلمة المرور</string>
+    <string name="create_account">إنشاء الحساب</string>
+
+    <!-- واجهة تنبيه الطوارئ (SOS Onboarding) -->
+    <string name="emergency_title">تنبيه الطوارئ</string>
+    <string name="emergency_desc">بضغطة زر واحدة، يمكنكِ الاتصال فوراً بجهات الطوارئ وإرسال رسائل استغاثة لموقعكِ الحالي إلى جهات الاتصال الموثوقة عند الشعور بالخطر.</string>
+
+    <!-- واجهة الكاميرا الخفية (Spy Camera Onboarding) -->
+    <string name="spy_camera_title">ميزة التوثيق السري</string>
+    <string name="spy_camera_desc">في مواقف المضايقات أو الخطر، تتيح لكِ هذه الميزة التقاط صور أو فيديوهات بسرية تامة لتكون دليلاً قانونياً يحفظ حقوقكِ ويساعد السلطات.</string>
+
+    <!-- واجهة مشاركة الموقع (Location Onboarding) -->
+    <string name="share_loc_title">مشاركة الموقع الحي</string>
+    <string name="share_loc_desc">شاركي موقعكِ المباشر مع عائلتكِ وأصدقائكِ المقربين بسهولة تامة، ليكونوا معكِ خطوة بخطوة حتى تصلي بسلام.</string>
+
+    <!-- القائمة الجانبية (Drawer Menu) -->
+    <string name="menu_home">الرئيسية</string>
+    <string name="menu_profile">الملف الشخصي</string>
+    <string name="menu_notification">التنبيهات</string>
+    <string name="menu_about">عن التطبيق</string>
+    <string name="menu_logout">تسجيل الخروج</string>
+
+    <!-- شاشة جهات الاتصال (Contacts) -->
+    <string name="contacts_title">جهات اتصال الطوارئ</string>
+    <string name="contacts_empty">لا توجد جهات اتصال مضافة.\nاضغطي على (+) لإضافة شخص تثقين به.</string>
+    <string name="add_contact_title">إضافة جهة اتصال موثوقة</string>
+    <string name="hint_contact_name">اسم الشخص</string>
+    <string name="hint_contact_number">رقم الجوال</string>
+    <string name="hint_relationship">صلة القرابة (أب، أخ، صديقة...)</string>
+    <string name="btn_save">حفظ</string>
+    <string name="btn_cancel">إلغاء</string>
+
+    <!-- شاشة السجل (History) -->
+    <string name="history_title">سجل البلاغات</string>
+    <string name="history_empty">لا توجد بلاغات سابقة في السجل.</string>
+    <string name="report_type_sos">استغاثة طارئة (SOS)</string>
+    <string name="report_type_trip">تتبع رحلة آمنة</string>
+    <string name="status_sent">تم الإرسال بنجاح</string>
+    <string name="status_pending">جاري المعالجة...</string>
+    <string name="status_failed">فشل الإرسال</string>
+
+    <!-- الملف الشخصي (Profile) -->
+    <string name="profile_title">الملف الشخصي</string>
+    <string name="user_name_placeholder">الاسم الكامل</string>
+    <string name="user_phone_placeholder">+966 -- --- ----</string>
+    <string name="section_account">إدارة الحساب</string>
+    <string name="section_app">تفضيلات التطبيق</string>
+    <string name="action_edit_profile">تعديل البيانات الشخصية</string>
+    <string name="action_change_password">تغيير كلمة المرور</string>
+    <string name="action_notifications">إشعارات الحماية</string>
+    <string name="action_language">لغة التطبيق</string>
+    <string name="action_logout">تسجيل الخروج</string>
+
+    <!-- واجهة الطوارئ النشطة (Active SOS) -->
+    <string name="sos_title">حالة طوارئ نشطة!</string>
+    <string name="sos_subtitle">سيتم إرسال نداء الاستغاثة والموقع الحي خلال</string>
+    <string name="sos_seconds">ثوانٍ</string>
+    <string name="btn_send_now">إرسال فوراً</string>
+    <string name="btn_im_safe">أنا بخير، إلغاء التنبيه</string>
+
+    <!-- تفاصيل البلاغ (Incident Detail) -->
+    <string name="detail_title">تفاصيل الحادثة</string>
+    <string name="label_date_time">التاريخ والوقت</string>
+    <string name="label_report_type">نوع النداء</string>
+    <string name="label_status">الحالة النهائية</string>
+    <string name="label_location">الموقع الجغرافي</string>
+    <string name="label_notes">الملاحظات المسجلة</string>
+    <string name="label_evidence">الأدلة الموثقة (صوت/صور)</string>
+    <string name="audio_duration_placeholder">00:00</string>
+    <string name="tap_to_view_map">اضغطي لعرض الموقع على الخريطة</string>
+    <string name="btn_next">التالي</string>
+
+
+    <!-- واجهة الرحلة الآمنة -->
+    <string name="journey_title">الرحلة الآمنة</string>
+    <string name="journey_subtitle">حددي وجهتكِ، وسنرافقكِ خطوة بخطوة.</string>
+
+    <!-- حالة الإعداد -->
+    <string name="search_hint">إلى أين تودين الذهاب؟</string>
+    <string name="btn_start_journey">ابدأ الرحلة</string>
+
+    <!-- حالة التتبع -->
+    <string name="status_tracking">جارٍ تتبع مساركِ...</string>
+    <string name="label_eta">وقت الوصول المتوقع</string>
+    <string name="eta_placeholder">15 دقيقة</string>
+    <string name="btn_arrived_safe">وصلت بأمان</string>
+    <string name="btn_danger">خطر!</string>
+
+</resources>

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ============================================ -->
+    <!--                 الأذونات (Permissions)       -->
+    <!-- ============================================ -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- ميزات الهاردوير -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+
+
+
+    <!-- ============================================ -->
+    <!--                 التطبيق (Application)        -->
+    <!-- ============================================ -->
+    <application
+        android:name=".HerSafeApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.HerSafe"
+        tools:targetApi="31">
+
+        <!-- مفتاح خرائط جوجل -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyBfFk1ZhdwSO0stlf63MkFOr-akeoD6noA" />
+
+        <!-- 1. صفحة البداية (Splash/Main) -->
+        <activity
+            android:name=".ui.splash.SplashActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 2. سلسلة الترحيب -->
+        <activity
+            android:name=".ui.onboarding.OnboardingActivity"
+            android:exported="false" />
+
+        <!-- 3. الدخول والتسجيل -->
+        <activity android:name=".ui.auth.LoginActivity" android:exported="false" />
+        <activity android:name=".ui.auth.SignupActivity" android:exported="false" />
+        <activity android:name=".ui.auth.VerificationActivity" android:exported="false" />
+
+        <!-- 4. القائمة الرئيسية -->
+        <activity android:name=".ui.main.MainActivity" android:exported="false" />
+
+        <!-- 5. الخدمات -->
+        <activity android:name=".ui.features.journey.SafeJourneyActivity" android:exported="false" />
+        <activity android:name=".ui.features.sos.SosAlertActivity" android:exported="false" />
+        <activity android:name=".ui.features.history.IncidentDetailActivity" android:exported="false" />
+
+        <!-- 6. جهات الاتصال والإضافة (تم الإصلاح هنا) -->
+        <activity android:name=".ui.features.contacts.ContactsActivity" android:exported="false" />
+        <activity android:name=".ui.features.contacts.AddContactDialog" android:exported="false" />
+
+        <!-- 7. سجل الحوادث والملف الشخصي -->
+        <activity android:name=".ui.features.history.HistoryActivity" android:exported="false" />
+        <activity android:name=".ui.profile.ProfileActivity" android:exported="false" />
+
+        <!-- 8. خدمة تسجيل الفيديو -->
+        <service
+            android:name=".service.VideoRecordingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="camera" />
+            
+        <service 
+            android:name=".service.VolumeButtonService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback|location" />
+
+        <service
+            android:name=".service.VolumeAccessibilityService"
+            android:label="HerSafe SOS Trigger"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+    </application>
+
+</manifest>

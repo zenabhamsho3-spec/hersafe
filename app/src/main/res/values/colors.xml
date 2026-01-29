@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- ألوان تطبيق Hersafe المستخرجة من التصميم -->
+    <color name="hersafe_pink">#E89CAC</color> <!-- اللون الوردي للأشكال -->
+    <color name="hersafe_text">#764053</color> <!-- لون النص الغامق -->
+    <color name="hersafe_bg">#FFFFFF</color>   <!-- الخلفية البيضاء -->
+
+
+        <color name="hersafe_desc">#9A5E72</color> <!-- لون نص الوصف (درجة أغمق قليلاً للقراءة) -->
+
+        <!-- ألوان النقاط (Dots) -->
+        <color name="dot_active">#764053</color> <!-- النقطة النشطة (نفس لون النص) -->
+        <color name="dot_inactive">#FFFFFF</color> <!-- النقاط غير النشطة -->
+
+        <!-- الألوان الأساسية الموجودة سابقاً -->
+        <color name="primaryColor">#7D425C</color> <!-- اللون الرئيسي للتطبيق -->
+
+
+        <!-- ألوان خاصة بواجهة الطوارئ -->
+        <color name="emergency_red">#D32F2F</color> <!-- أحمر زر الطوارئ -->
+        <color name="card_background">#F5F5F5</color> <!-- رمادي فاتح للكروت -->
+        <color name="text_title">#212121</color>
+        <color name="text_subtitle">#757575</color>
+
+
+        <!-- الألوان المستخرجة من التصميم -->
+        <color name="hersafe_title">#764053</color> <!-- لون العنوان والنص السفلي -->
+        <color name="hersafe_pink_bg">#E699A8</color> <!-- لون الخلفية الوردية -->
+
+
+
+        <color name="hersafe_hint">#9E9E9E</color> <!-- لون النص التلميحي الرمادي -->
+
+
+        <color name="primaryDarkColor">#870024</color>
+
+<!--        <color name="gray_hint">#757575</color>-->
+        <color name="background_light">#FBFBFB</color>
+    <color name="secondaryColor">#e91e63</color>
+
+
+
+        <color name="purple_500">#FF6200EE</color>
+
+
+
+        <!-- ألوان التصميم الخاصة بـ HerSafe -->
+        <color name="item_selected_gray">#E0E0E0</color> <!-- اللون الرمادي الفاتح لخلفية Home -->
+
+
+
+
+        <!-- ألوان حالات البلاغ -->
+        <color name="status_sent_bg">#E8F5E9</color>      <!-- خلفية خضراء فاتحة -->
+        <color name="status_sent_text">#2E7D32</color>    <!-- نص أخضر غامق -->
+
+        <color name="status_pending_bg">#FFF3E0</color>   <!-- خلفية برتقالية فاتحة -->
+        <color name="status_pending_text">#EF6C00</color> <!-- نص برتقالي -->
+
+        <color name="text_gray">#757575</color>
+
+
+        <!-- ... الألوان السابقة ... -->
+        <color name="profile_bg">#F8F9FA</color> <!-- خلفية رمادية فاتحة جداً للشاشة -->
+        <color name="icon_bg_light">#F3E5F5</color> <!-- خلفية فاتحة للأيقونات -->
+        <color name="logout_red">#D32F2F</color>
+
+
+        <!-- ... الألوان السابقة ... -->
+
+        <!-- ألوان SOS -->
+        <color name="sos_gradient_start">#D32F2F</color> <!-- أحمر فاقع -->
+        <color name="sos_gradient_end">#764053</color>   <!-- بنفسجي التطبيق الغامق -->
+        <color name="pulse_circle">#4DFFFFFF</color>      <!-- أبيض شفاف للحلقات النابضة -->
+
+
+        <color name="detail_bg">#F5F5F5</color>
+        <color name="label_text">#757575</color> <!-- رمادي للعناوين الفرعية -->
+        <color name="value_text">#212121</color> <!-- أسود للقيم -->
+
+
+        <color name="safe_green">#4CAF50</color> <!-- أخضر للأمان -->
+        <color name="danger_red">#D32F2F</color> <!-- أحمر للخطر -->
+        <color name="map_placeholder_bg">#E1F5FE</color> <!-- لون خلفية للخريطة -->
+    <color name="route_dark_pink">#D81B60</color> <!-- لون المسار (Dark Pink) -->
+
+    </resources>

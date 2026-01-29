@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F8F9FA"
+    android:layoutDirection="rtl">
+
+    <!-- 1. العنوان -->
+    <TextView
+        android:id="@+id/tvHistoryTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="24dp"
+        android:text="@string/history_title"
+        android:textColor="@color/hersafe_title"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:background="@color/white"
+        android:elevation="2dp" />
+
+    <!-- 2. القائمة RecyclerView -->
+    <!-- نستخدم layout_weight لملء باقي الشاشة -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvHistory"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="16dp"
+        android:clipToPadding="false"
+        android:scrollbars="vertical"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        tools:listitem="@layout/item_history_card" />
+
+    <!-- 3. حالة فارغة (تظهر برمجياً إذا لم يكن هناك بيانات) -->
+    <TextView
+        android:id="@+id/tvEmptyHistory"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/history_empty"
+        android:gravity="center"
+        android:textColor="@color/text_gray"
+        android:textSize="16sp"
+        android:visibility="gone"
+        android:layout_marginTop="50dp"/>
+
+</LinearLayout>

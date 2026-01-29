@@ -1,0 +1,3 @@
+<resources>
+    <string name="accessibility_service_description">تُستخدم هذه الخدمة لاكتشاف الضغط على أزرار الصوت لتفعيل حالة الطوارئ SOS وإرسال التنبيهات حتى عند إغلاق التطبيق.</string>
+</resources>
