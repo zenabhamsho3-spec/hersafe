@@ -25,6 +25,7 @@ import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.example.hersafe.R;
 import com.example.hersafe.service.VideoRecordingService;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.navigation.NavigationView;
 import com.example.hersafe.ui.features.sos.SosAlertActivity;
 import com.example.hersafe.ui.features.journey.SafeJourneyActivity;
@@ -238,7 +239,10 @@ public class MainActivity extends AppCompatActivity {
             registerReceiver(videoStateReceiver, new android.content.IntentFilter("com.example.hersafe.VIDEO_STATE_CHANGED"));
         }
         
-        // 3. Start Volume Service (Foreground) - Keep generic service for location/others if needed, 
+        // Update UI state immediately based on service status
+        updateCameraIcon(com.example.hersafe.service.VideoRecordingService.isServiceRunning);
+        
+        // 3. Start Volume Service (Foreground)
         // even if SOS trigger is disabled there.
         Intent volumeService = new Intent(this, com.example.hersafe.service.VolumeButtonService.class);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -283,9 +287,29 @@ public class MainActivity extends AppCompatActivity {
     
     private void updateCameraIcon(boolean isRecording) {
         ImageView icon = findViewById(R.id.imgCameraIcon);
+        MaterialCardView card = findViewById(R.id.btnCamera);
+
         if (icon != null) {
-            icon.setImageDrawable(ContextCompat.getDrawable(this, 
-                isRecording ? R.drawable.ic_stop : R.drawable.ic_camera_alt));
+            icon.setImageDrawable(ContextCompat.getDrawable(this,
+                    isRecording ? R.drawable.ic_stop : R.drawable.ic_camera_alt));
+        }
+
+        if (card != null) {
+            if (isRecording) {
+                // تطبيق شادو أحمر (عن طريق stroke) وزيادة الارتفاع - قيم معدلة لزيادة الوضوح
+                card.setStrokeColor(ContextCompat.getColor(this, R.color.danger_red));
+                card.setStrokeWidth(12); // زيادة السماكة من 6 إلى 12
+                card.setCardElevation(48f); // زيادة الشادو من 24 إلى 48
+
+                // بدء تأثير النبض
+                android.view.animation.Animation pulse = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.pulse);
+                card.startAnimation(pulse);
+            } else {
+                // إعادة الزر لوضعه الطبيعي
+                card.setStrokeWidth(0);
+                card.setCardElevation(6f);
+                card.clearAnimation();
+            }
         }
     }
 
