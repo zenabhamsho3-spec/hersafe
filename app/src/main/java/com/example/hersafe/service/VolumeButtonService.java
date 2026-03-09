@@ -107,7 +107,7 @@ public class VolumeButtonService extends Service {
         vibrate(1000); // 1 second vibration
         
         // Unified Logic via Helper
-        SosHelper.triggerSos(this);
+        SosHelper.launchSosActivity(this);
     }
     
     private void vibrate(long duration) {

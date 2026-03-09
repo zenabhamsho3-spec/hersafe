@@ -37,6 +37,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.example.hersafe.data.local.AppDatabase;
 import com.example.hersafe.data.local.dao.ContactDao;
 import com.example.hersafe.data.local.entities.Contact;
+import com.example.hersafe.data.preferences.SessionManager;
 import com.example.hersafe.data.local.entities.Contact;
 import java.util.List;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -97,6 +98,14 @@ public class VideoRecordingService extends LifecycleService {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
+        
+        // Security Check: Ensure user is logged in
+        if (!SessionManager.getInstance(this).isLoggedIn()) {
+            Log.w(TAG, "🛑 VideoRecordingService stopped: User not logged in.");
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
         if (intent != null) {
             String action = intent.getAction();
             if ("STOP".equals(action)) {
@@ -207,6 +216,9 @@ public class VideoRecordingService extends LifecycleService {
                             uploadVideoToTelegram(finalizeEvent.getOutputResults().getOutputUri());
                         } else {
                             Log.e(TAG, "Video capture ends with error: " + finalizeEvent.getError());
+                            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
+                                Toast.makeText(VideoRecordingService.this, "فشل التسجيل: " + finalizeEvent.getError(), Toast.LENGTH_LONG).show()
+                            );
                         }
                         
                         // Clear current recording reference
@@ -246,6 +258,7 @@ public class VideoRecordingService extends LifecycleService {
     
     private void sendBroadcastState(boolean isRec) {
         Intent intent = new Intent("com.example.hersafe.VIDEO_STATE_CHANGED");
+        intent.setPackage(getPackageName());
         intent.putExtra("isRecording", isRec);
         // Using standard broadcast as we are in different components (Activity vs Service)
         sendBroadcast(intent);
@@ -353,23 +366,98 @@ public class VideoRecordingService extends LifecycleService {
                 }
 
                 // 4. Upload the Cache File with Caption
-                String chatId = "5244567403"; 
-                Log.d(TAG, "Uploading filtered video from cache: " + cacheFile.getAbsolutePath());
+                SessionManager sessionManager = SessionManager.getInstance(VideoRecordingService.this);
+                String token = sessionManager.getTelegramToken();
+                String chatId = sessionManager.getTelegramChatId();
+                
+                // Extra safety: Fallback if for some reason SessionManager returned empty (unlikely with new defaults)
+                if (chatId.isEmpty()) chatId = "5244567403"; 
+                
+                if (token.isEmpty()) {
+                    // Should theoretically not happen now with defaults, but good for safety
+                    Log.e(TAG, "Telegram Token Key is missing!");
+                     new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
+                        Toast.makeText(VideoRecordingService.this, "⚠️ خطأ: يرجى ضبط توكن البوت من الملف الشخصي", Toast.LENGTH_LONG).show()
+                    );
+                    return;
+                }
+
+                // Debug: Log Token format (masked)
+                String maskedToken = token.length() > 10 ? token.substring(0, 5) + "..." + token.substring(token.length() - 5) : "SHORT_TOKEN";
+                Log.d(TAG, "Using Telegram Token: '" + maskedToken + "' Length: " + token.length());
+                if (token.contains(" ") || token.contains("\n")) {
+                    Log.w(TAG, "Warning: Token contains whitespace or newlines! Attempting to trim.");
+                }
+
+                if (cacheFile.length() == 0) {
+                    Log.e(TAG, "File size is 0! Copy failed.");
+                    return;
+                }
+                Log.d(TAG, "Uploading filtered video from cache: " + cacheFile.getAbsolutePath() + " Size: " + cacheFile.length() + " bytes");
 
                 RequestBody requestFile = RequestBody.create(MediaType.parse("video/mp4"), cacheFile);
                 MultipartBody.Part body = MultipartBody.Part.createFormData("video", cacheFile.getName(), requestFile);
                 RequestBody chatIdBody = RequestBody.create(MediaType.parse("text/plain"), chatId);
                 RequestBody captionBody = RequestBody.create(MediaType.parse("text/plain"), caption);
 
-                RetrofitClient.getTelegramService().sendVideo(chatIdBody, captionBody, body).enqueue(new Callback<ResponseBody>() {
+                // Final copies for inner class access
+                double finalLat = lat;
+                double finalLng = lng;
+                // Use user's phone from SessionManager, not contact's phone
+                String userPhone = sessionManager.getUserPhone();
+                if (userPhone == null || userPhone.isEmpty()) userPhone = "Unknown";
+                String finalUserPhone = userPhone;
+
+                RetrofitClient.getTelegramService(token).sendVideo(chatIdBody, captionBody, body).enqueue(new Callback<ResponseBody>() {
                     @Override
                     public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
                         if (response.isSuccessful()) {
                             Log.d(TAG, "Video uploaded successfully to Telegram");
-                            Toast.makeText(VideoRecordingService.this, "تم رفع الفيديو بنجاح!", Toast.LENGTH_SHORT).show();
+                            
+                            // [NEW] Extract Message ID and Report to Backend
+                            try {
+                                String bodyStr = response.body().string();
+                                JSONObject telegramResponse = new JSONObject(bodyStr);
+                                if (telegramResponse.getBoolean("ok")) {
+                                    int messageId = telegramResponse.getJSONObject("result").getInt("message_id");
+                                    String videoId = String.valueOf(messageId);
+                                    Log.d(TAG, "Telegram Message ID: " + videoId);
+
+                                    // Send to Backend
+                                    com.example.hersafe.data.remote.ReportsApiService reportsService = 
+                                        RetrofitClient.getReportsService();
+                                    
+                                    com.example.hersafe.data.remote.models.ReportRequest report = 
+                                        new com.example.hersafe.data.remote.models.ReportRequest(finalUserPhone, finalLat, finalLng, videoId);
+                                        
+                                    reportsService.reportAlert(report).enqueue(new Callback<ResponseBody>() {
+                                        @Override
+                                        public void onResponse(Call<ResponseBody> call, Response<ResponseBody> r) {
+                                            Log.d(TAG, "Backend report sent successfully");
+                                        }
+                                        @Override
+                                        public void onFailure(Call<ResponseBody> call, Throwable t) {
+                                            Log.e(TAG, "Backend report failed", t);
+                                        }
+                                    });
+                                }
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error parsing Telegram response or sending report", e);
+                            }
+
+                            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
+                                Toast.makeText(VideoRecordingService.this, "تم رفع الفيديو بنجاح! ✅", Toast.LENGTH_SHORT).show()
+                            );
                         } else {
-                            Log.e(TAG, "Upload failed: " + response.code());
-                            Toast.makeText(VideoRecordingService.this, "فشل الرفع: " + response.code(), Toast.LENGTH_SHORT).show();
+                            try {
+                                String errorBody = response.errorBody() != null ? response.errorBody().string() : "No error body";
+                                Log.e(TAG, "Upload failed: " + response.code() + " Body: " + errorBody);
+                                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
+                                    Toast.makeText(VideoRecordingService.this, "فشل الرفع (" + response.code() + "): " + errorBody, Toast.LENGTH_LONG).show()
+                                );
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error parsing error body", e);
+                            }
                         }
                         // Cleanup
                         if (cacheFile.exists()) cacheFile.delete();
@@ -378,7 +466,9 @@ public class VideoRecordingService extends LifecycleService {
                     @Override
                     public void onFailure(Call<ResponseBody> call, Throwable t) {
                         Log.e(TAG, "Upload error", t);
-                        Toast.makeText(VideoRecordingService.this, "خطأ في الاتصال: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> 
+                            Toast.makeText(VideoRecordingService.this, "خطأ شبكة: " + t.getMessage(), Toast.LENGTH_LONG).show()
+                        );
                          // Cleanup
                         if (cacheFile.exists()) cacheFile.delete();
                     }

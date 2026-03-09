@@ -68,4 +68,22 @@ public interface UserDao {
      */
     @Query("SELECT COUNT(*) FROM users WHERE is_logged_in = 1")
     int isAnyUserLoggedIn();
+
+    /**
+     * تحديث بيانات البروفايل
+     */
+    @Query("UPDATE users SET name = :name, phone = :phone, birthdate = :birthdate, residence = :residence, father_name = :fatherName, mother_name = :motherName WHERE id = :userId")
+    void updateProfile(int userId, String name, String phone, String birthdate, String residence, String fatherName, String motherName);
+
+    /**
+     * تحديث صورة البروفايل
+     */
+    @Query("UPDATE users SET profile_photo_uri = :photoUri WHERE id = :userId")
+    void updateProfilePhoto(int userId, String photoUri);
+
+    /**
+     * إنشاء أو تحديث مستخدم (upsert by email)
+     */
+    @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
+    User findByEmail(String email);
 }

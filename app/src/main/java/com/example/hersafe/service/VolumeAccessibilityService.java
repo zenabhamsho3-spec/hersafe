@@ -96,8 +96,14 @@ public class VolumeAccessibilityService extends AccessibilityService {
     }
 
     private void triggerSos() {
-        // Unified Logic: Delegates entirely to SosHelper
-        SosHelper.triggerSos(getApplicationContext());
+        // Security Check: Only trigger if logged in
+        if (!com.example.hersafe.data.preferences.SessionManager.getInstance(getApplicationContext()).isLoggedIn()) {
+            Log.w(TAG, "⚠️ SOS Trigger ignored (Accessibility): User not logged in.");
+            return;
+        }
+
+        // Unified Logic: Launch Activity (Countdown handles the rest)
+        SosHelper.launchSosActivity(getApplicationContext());
     }
 
     private void showToast(String message) {

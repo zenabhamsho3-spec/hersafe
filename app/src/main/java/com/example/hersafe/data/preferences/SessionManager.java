@@ -20,6 +20,9 @@ public class SessionManager {
     private static final String KEY_AUTH_TOKEN = "authToken";
     private static final String KEY_IS_FIRST_TIME = "isFirstTime";
     private static final String KEY_SOS_COUNTDOWN = "sosCountdown";
+    private static final String KEY_TELEGRAM_TOKEN = "telegramToken";
+    private static final String KEY_TELEGRAM_CHAT_ID = "telegramChatId";
+    private static final String KEY_PROFILE_PHOTO_PATH = "profilePhotoPath";
 
     private final SharedPreferences pref;
     private final SharedPreferences.Editor editor;
@@ -129,6 +132,45 @@ public class SessionManager {
      */
     public void setSosCountdown(int seconds) {
         editor.putInt(KEY_SOS_COUNTDOWN, seconds);
+        editor.apply();
+    }
+
+    // ==================== Telegram Config ====================
+
+    // Default credentials provided by user - LOCKED
+    // These are the ONLY credentials the app will use.
+    private static final String DEFAULT_TOKEN = "8503140381:AAGtXY0pX8OsHvEKS92t3th8cz1KPNiPPbw";
+    private static final String DEFAULT_CHAT_ID = "5244567403";
+
+    public String getTelegramToken() {
+        return DEFAULT_TOKEN; 
+    }
+
+    public void setTelegramToken(String token) {
+        // No-op: user cannot change token
+    }
+
+    public String getTelegramChatId() {
+        return pref.getString(KEY_TELEGRAM_CHAT_ID, DEFAULT_CHAT_ID);
+    }
+
+    public boolean hasTelegramChatId() {
+        return pref.contains(KEY_TELEGRAM_CHAT_ID);
+    }
+
+    public void setTelegramChatId(String chatId) {
+        editor.putString(KEY_TELEGRAM_CHAT_ID, chatId);
+        editor.apply();
+    }
+
+    // ==================== Profile Photo ====================
+
+    public String getProfilePhotoPath() {
+        return pref.getString(KEY_PROFILE_PHOTO_PATH, null);
+    }
+
+    public void setProfilePhotoPath(String path) {
+        editor.putString(KEY_PROFILE_PHOTO_PATH, path);
         editor.apply();
     }
 }

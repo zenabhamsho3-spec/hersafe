@@ -94,11 +94,7 @@ public class SosAlertActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         // تسجيل المستقبل عند فتح النشاط
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            registerReceiver(smsSentReceiver, new android.content.IntentFilter("SMS_SENT"), android.content.Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(smsSentReceiver, new android.content.IntentFilter("SMS_SENT"));
-        }
+        ContextCompat.registerReceiver(this, smsSentReceiver, new android.content.IntentFilter("SMS_SENT"), ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     @Override
@@ -235,7 +231,8 @@ public class SosAlertActivity extends AppCompatActivity {
 
         // Unified Logic via Helper
         // Helper handles: SMS, Location, Video, Telegram
-        com.example.hersafe.utils.SosHelper.triggerSos(this);
+        // DO NOT LAUNCH ACTIVITY AGAIN (Prevents Loop)
+        com.example.hersafe.utils.SosHelper.performSosActions(this);
 
         finish();
     }

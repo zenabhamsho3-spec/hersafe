@@ -26,6 +26,21 @@ public class User {
     @ColumnInfo(name = "token")
     private String token;
 
+    @ColumnInfo(name = "profile_photo_uri")
+    private String profilePhotoUri;
+
+    @ColumnInfo(name = "birthdate")
+    private String birthdate;
+
+    @ColumnInfo(name = "residence")
+    private String residence;
+
+    @ColumnInfo(name = "father_name")
+    private String fatherName;
+
+    @ColumnInfo(name = "mother_name")
+    private String motherName;
+
     @ColumnInfo(name = "is_logged_in")
     private boolean isLoggedIn;
 
@@ -85,5 +100,45 @@ public class User {
 
     public void setLoggedIn(boolean loggedIn) {
         isLoggedIn = loggedIn;
+    }
+
+    public String getProfilePhotoUri() {
+        return profilePhotoUri;
+    }
+
+    public void setProfilePhotoUri(String profilePhotoUri) {
+        this.profilePhotoUri = profilePhotoUri;
+    }
+
+    public String getBirthdate() {
+        return birthdate;
+    }
+
+    public void setBirthdate(String birthdate) {
+        this.birthdate = birthdate;
+    }
+
+    public String getResidence() {
+        return residence;
+    }
+
+    public void setResidence(String residence) {
+        this.residence = residence;
+    }
+
+    public String getFatherName() {
+        return fatherName;
+    }
+
+    public void setFatherName(String fatherName) {
+        this.fatherName = fatherName;
+    }
+
+    public String getMotherName() {
+        return motherName;
+    }
+
+    public void setMotherName(String motherName) {
+        this.motherName = motherName;
     }
 }

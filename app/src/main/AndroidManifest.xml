@@ -16,6 +16,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- ميزات الهاردوير -->
@@ -79,6 +80,9 @@
         <!-- 7. سجل الحوادث والملف الشخصي -->
         <activity android:name=".ui.features.history.HistoryActivity" android:exported="false" />
         <activity android:name=".ui.profile.ProfileActivity" android:exported="false" />
+        <activity android:name=".ui.profile.AboutActivity" android:exported="false" />
+        <activity android:name=".ui.TelegramPairingActivity" android:exported="false" />
+        <activity android:name=".ui.notifications.NotificationsActivity" android:exported="false" />
 
         <!-- 8. خدمة تسجيل الفيديو -->
         <service
@@ -86,6 +90,12 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="camera" />
+
+        <service
+            android:name=".service.LiveLocationService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
             
         <service 
             android:name=".service.VolumeButtonService"
@@ -105,6 +115,14 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <activity
+            android:name=".ui.features.reports.HighRiskAreasActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".ui.features.reports.AreaDetailActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>

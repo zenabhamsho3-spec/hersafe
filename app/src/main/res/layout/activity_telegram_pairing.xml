@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:layoutDirection="rtl"
+    tools:context=".ui.TelegramPairingActivity">
+
+    <!-- AppBar -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/hersafe_pink_bg"
+        app:titleTextColor="@color/white"
+        app:title="ربط حساب التلجرام"
+        app:navigationIcon="@drawable/ic_arrow_left"
+        app:navigationIconTint="@color/white"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="الخطوة 1: مسح الرمز من جهاز ولي الأمر"
+                android:textColor="@color/hersafe_title"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="يرجى مسح رمز الـ QR التالي باستخدام كاميرا هاتف ولي الأمر لفتح المحادثة مع بوت التطبيق على تلجرام، ثم اضغط على زر البدء داخل البوت."
+                android:textColor="#555"
+                android:textSize="14sp"
+                android:layout_marginBottom="16dp" />
+
+            <ImageView
+                android:id="@+id/ivQrCode"
+                android:layout_width="200dp"
+                android:layout_height="200dp"
+                android:layout_gravity="center"
+                android:layout_marginBottom="24dp"
+                android:background="#EEE" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#DDD"
+                android:layout_marginBottom="24dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="الخطوة 2: قراءة الرمز من البوت"
+                android:textColor="@color/hersafe_title"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="بعد أن يعرض لك البوت رمز QR آخر، اضغط على الزر أدناه لمسحه عبر كاميرا جهازك الحالي لإنهاء عملية الربط."
+                android:textColor="#555"
+                android:textSize="14sp"
+                android:layout_marginBottom="24dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnScanBotQr"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="مسح رمز البوت"
+                app:cornerRadius="12dp"
+                android:backgroundTint="@color/hersafe_pink_bg"
+                app:icon="@drawable/ic_camera_video"
+                app:iconGravity="textStart"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="@color/success_green"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginTop="24dp"
+                android:visibility="gone" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

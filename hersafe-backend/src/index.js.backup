@@ -1,0 +1,601 @@
+export default {
+    async fetch(request, env) {
+        const url = new URL(request.url);
+        const path = url.pathname;
+
+        const corsHeaders = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        };
+
+        if (request.method === "OPTIONS") {
+            return new Response(null, { headers: corsHeaders });
+        }
+
+        try {
+            // --- API Endpoints ---
+            if (path === "/api/report" && request.method === "POST") {
+                return handleAndroidReport(request, env, corsHeaders);
+            }
+
+            if (path === "/auth/verify" && request.method === "POST") {
+                const { token } = await request.json();
+                if (!token) throw new Error("Token is required");
+                const user = await env.DB.prepare("SELECT id, name, email, phone, api_token FROM users WHERE api_token = ?").bind(token).first();
+                if (user) {
+                    return new Response(JSON.stringify({ success: true, user }), {
+                        headers: { ...corsHeaders, "Content-Type": "application/json" }
+                    });
+                } else {
+                    return new Response(JSON.stringify({ success: false, error: "Invalid token" }), {
+                        status: 401,
+                        headers: { ...corsHeaders, "Content-Type": "application/json" }
+                    });
+                }
+            }
+
+            if (path === "/auth/login" && request.method === "POST") {
+                const { email, password } = await request.json();
+                const user = await env.DB.prepare("SELECT id, name, email, phone, api_token FROM users WHERE email = ? AND password_hash = ?")
+                    .bind(email, password).first();
+                if (user) {
+                    return new Response(JSON.stringify({ success: true, user }), {
+                        headers: { ...corsHeaders, "Content-Type": "application/json" }
+                    });
+                } else {
+                    return new Response(JSON.stringify({ success: false, error: "Invalid credentials" }), {
+                        status: 401,
+                        headers: { ...corsHeaders, "Content-Type": "application/json" }
+                    });
+                }
+            }
+
+            if (path === "/auth/register" && request.method === "POST") {
+                const { name, email, phone, password } = await request.json();
+                const api_token = crypto.randomUUID();
+                await env.DB.prepare("INSERT INTO users (name, email, phone, password_hash, api_token) VALUES (?, ?, ?, ?, ?)")
+                    .bind(name, email, phone, password, api_token).run();
+                return new Response(JSON.stringify({ success: true, api_token }), {
+                    headers: { ...corsHeaders, "Content-Type": "application/json" }
+                });
+            }
+
+            if (path === "/auth/setup" && request.method === "POST") {
+                await env.DB.prepare(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, phone TEXT, password_hash TEXT, api_token TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
+                await env.DB.prepare(`CREATE TABLE IF NOT EXISTS emergency_contacts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, name TEXT, phone TEXT, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)`).run();
+                await env.DB.prepare(`CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, phone_number TEXT, latitude REAL, longitude REAL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
+                return new Response(JSON.stringify({ success: true, message: "Database initialized" }), {
+                    headers: { ...corsHeaders, "Content-Type": "application/json" }
+                });
+            }
+
+            if (path === "/api/data" && request.method === "GET") {
+                if (!await isAuthenticated(request)) return new Response('Unauthorized', { status: 401 });
+                return handleAdminData(env, corsHeaders);
+            }
+
+            if (path === "/login" && request.method === "POST") {
+                return handleLogin(request);
+            }
+
+            if (path === "/api/public/alerts" && request.method === "GET") {
+                return handlePublicAlerts(env, corsHeaders);
+            }
+
+            if (path === "/api/public/alerts" && request.method === "GET") {
+                return handlePublicAlerts(env, corsHeaders);
+            }
+
+            if (path === "/api/admin/seed" && request.method === "POST") {
+                return handleSeed(env, corsHeaders);
+            }
+
+            // Default: Render Dashboard or Login HTML
+            return handleHtmlRequest(request);
+
+        } catch (error) {
+            return new Response(JSON.stringify({ success: false, error: error.message }), {
+                status: 500,
+                headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
+        }
+    },
+};
+
+async function handleSeed(env, corsHeaders) {
+    const centers = {
+        "Hama": { lat: 35.1318, lng: 36.7578, count: 40, spread: 0.05 },
+        "Damascus": { lat: 33.5138, lng: 36.2765, count: 25, spread: 0.08 },
+        "Aleppo": { lat: 36.2021, lng: 37.1343, count: 20, spread: 0.06 },
+        "Homs": { lat: 34.7324, lng: 36.7137, count: 15, spread: 0.05 },
+        "Latakia": { lat: 35.5317, lng: 35.7901, count: 10, spread: 0.04 },
+        "Tartus": { lat: 34.8890, lng: 35.8866, count: 10, spread: 0.04 },
+        "Idlib": { lat: 35.9306, lng: 36.6339, count: 10, spread: 0.04 },
+        "Daraa": { lat: 32.6184, lng: 36.1014, count: 5, spread: 0.03 },
+        "Suwayda": { lat: 32.7090, lng: 36.5658, count: 5, spread: 0.03 },
+        "DeirEzZor": { lat: 35.3364, lng: 40.1458, count: 5, spread: 0.05 },
+        "Hasakah": { lat: 36.5074, lng: 40.7380, count: 5, spread: 0.05 },
+        "Raqqa": { lat: 35.9525, lng: 39.0089, count: 5, spread: 0.05 },
+        "Quneitra": { lat: 33.1264, lng: 35.8239, count: 2, spread: 0.02 }
+    };
+
+    function randomDate() {
+        const now = new Date();
+        const r = Math.random();
+        let past = new Date();
+        if (r < 0.35) past.setHours(now.getHours() - Math.floor(Math.random() * 24));
+        else if (r < 0.65) past.setDate(now.getDate() - Math.floor(Math.random() * 6) - 1);
+        else past.setDate(now.getDate() - Math.floor(Math.random() * 23) - 7);
+        return past.toISOString().slice(0, 19).replace('T', ' ');
+    }
+
+    try {
+        await env.DB.prepare("DELETE FROM alerts").run();
+
+        const stmts = [];
+        for (const [city, data] of Object.entries(centers)) {
+            for (let i = 0; i < data.count; i++) {
+                const lat = data.lat + (Math.random() - 0.5) * data.spread;
+                const lng = data.lng + (Math.random() - 0.5) * data.spread;
+                const time = randomDate();
+                const phone = '+9639' + Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+
+                stmts.push(env.DB.prepare("INSERT INTO alerts (phone_number, latitude, longitude, created_at) VALUES (?, ?, ?, ?)")
+                    .bind(phone, lat, lng, time));
+            }
+        }
+
+        // Batch execute in chunks of 50 to avoid limits
+        const chunkSize = 50;
+        for (let i = 0; i < stmts.length; i += chunkSize) {
+            await env.DB.batch(stmts.slice(i, i + chunkSize));
+        }
+
+        return new Response(JSON.stringify({ success: true, count: stmts.length }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+    } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+            status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+    }
+}
+
+async function handleAndroidReport(request, env, corsHeaders) {
+    try {
+        const data = await request.json();
+        const phone = data.phone;
+        const lat = data.location?.lat;
+        const lng = data.location?.lng;
+
+        if (!phone || !lat || !lng) {
+            return new Response(JSON.stringify({ status: "error", message: "Missing data" }), { status: 400, headers: corsHeaders });
+        }
+
+        await env.DB.prepare("INSERT INTO alerts (phone_number, latitude, longitude) VALUES (?, ?, ?)")
+            .bind(phone, lat, lng).run();
+
+        return new Response(JSON.stringify({ status: "success" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    } catch (e) {
+        return new Response(JSON.stringify({ status: "error", message: e.message }), { status: 500, headers: corsHeaders });
+    }
+}
+
+async function handleAdminData(env, corsHeaders) {
+    const { results } = await env.DB.prepare("SELECT * FROM alerts ORDER BY created_at DESC LIMIT 500").all();
+    const countResult = await env.DB.prepare("SELECT COUNT(*) as count FROM alerts WHERE date(created_at) = date('now')").first();
+    return new Response(JSON.stringify({
+        alerts: results,
+        stats: { today: countResult?.count || 0 }
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
+async function handlePublicAlerts(env, corsHeaders) {
+    // Return only public safe data: location and time.
+    // Limit to last 1000 alerts for performance.
+    const { results } = await env.DB.prepare("SELECT latitude, longitude, created_at FROM alerts ORDER BY created_at DESC LIMIT 1000").all();
+    return new Response(JSON.stringify(results), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+}
+
+async function handleLogin(request) {
+    const formData = await request.formData();
+    const password = formData.get('password');
+    const ADMIN_PASS = "Admin123";
+
+    if (password === ADMIN_PASS) {
+        const headers = new Headers();
+        headers.append("Set-Cookie", "auth=true; Path=/; HttpOnly; Secure; SameSite=Strict");
+        headers.append("Location", "/");
+        return new Response(null, { status: 302, headers });
+    }
+    return new Response("كلمة المرور خاطئة", { status: 403 });
+}
+
+async function isAuthenticated(request) {
+    const cookie = request.headers.get("Cookie");
+    return cookie && cookie.includes("auth=true");
+}
+
+async function handleHtmlRequest(request) {
+    const isAuth = await isAuthenticated(request);
+    if (!isAuth) return new Response(loginHtml(), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    return new Response(dashboardHtml(), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+}
+
+function loginHtml() {
+    return `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>HerSafe Admin Login</title><style>body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #2d1b4e; color: white; margin: 0; } form { background: #1a102e; padding: 2.5rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 300px; text-align: center; border: 1px solid #9c27b0; } input { display: block; width: 100%; margin: 15px 0; padding: 12px; border-radius: 8px; border: none; background: #3c2363; color: white; box-sizing: border-box; } button { width: 100%; padding: 12px; background: #9c27b0; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; } button:hover { background: #ba68c8; }</style></head><body><form action="/login" method="POST"><h2>لوحة تحكم HerSafe</h2><p>أدخل كلمة مرور المدير</p><input type="password" name="password" placeholder="كلمة المرور" required><button type="submit">دخول</button></form></body></html>`;
+}
+
+function dashboardHtml() {
+    return `<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم الأمنية HerSafe</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #9c27b0; --dark: #1a102e; --bg: #f5f5f5; --text: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: var(--bg); display: flex; flex-direction: column; height: 100vh; }
+        header { background: var(--dark); color: white; padding: 0.8rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .main-content { display: flex; flex: 1; overflow: hidden; padding: 15px; gap: 15px; }
+        .sidebar { width: 400px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
+        .map-container { flex: 1; position: relative; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        #map { height: 100%; width: 100%; }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .stats-item { text-align: center; }
+        .stats-count { font-size: 2.5rem; font-weight: bold; color: #e91e63; }
+        .filter-tabs { display: flex; gap: 10px; justify-content: center; margin: 15px 0; }
+        .filter-tab { padding: 8px 20px; background: #eee; border: none; border-radius: 20px; cursor: pointer; transition: 0.3s; font-weight: 500; }
+        .filter-tab.active { background: var(--primary); color: white; }
+        .gov-list { max-height: 400px; overflow-y: auto; }
+        .gov-item { padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; }
+        .gov-item:hover { background: #f9f9f9; }
+        .gov-badge { background: #e91e63; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; }
+        .area-detail { display: none; }
+        .area-detail.active { display: block; }
+        .area-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; font-size: 0.9rem; }
+        .back-btn { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; margin-bottom: 10px; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h2 style="margin:0">مركز عمليات HerSafe 🛰️</h2>
+        <button onclick="document.cookie='auth=; Max-Age=0'; location.reload();" style="background:none; border:1px solid #fff; color:#fff; padding:6px 15px; border-radius:20px; cursor:pointer;">خروج</button>
+    </header>
+
+    <div class="main-content">
+        <div class="sidebar">
+            <div class="card stats-item">
+                <h3 style="margin-top:0">التقارير حسب الفترة</h3>
+                <div class="filter-tabs">
+                    <button class="filter-tab active" onclick="setFilter('day')">يومي</button>
+                    <button class="filter-tab" onclick="setFilter('week')">أسبوعي</button>
+                    <button class="filter-tab" onclick="setFilter('month')">شهري</button>
+                </div>
+                <div id="filterCount" class="stats-count">0</div>
+                <p style="color: #666; margin: 5px 0 0 0;">بلاغ في الفترة المحددة</p>
+            </div>
+            
+            <div class="card">
+                <div id="govView">
+                    <h3>المحافظات حسب الخطورة</h3>
+                    <div id="govList" class="gov-list"></div>
+                </div>
+                <div id="areaView" class="area-detail">
+                    <button class="back-btn" onclick="showGovView()">← العودة للمحافظات</button>
+                    <h3 id="areaTitle"></h3>
+                    <div id="areaList"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([34.8, 38.5], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        const areaCenters = {
+            "دمشق (المركز)": [33.5138, 36.2765],
+            "ريف دمشق - داريا": [33.4583, 36.2393],
+            "ريف دمشق - دوما": [33.5719, 36.4025],
+            "حلب (المدينة)": [36.2021, 37.1343],
+            "حلب - عفرين": [36.5097, 36.8689],
+            "حماه (المدينة)": [35.1318, 36.7578],
+            "حماه - مصياف": [35.0653, 36.3421],
+            "حماه - سلمية": [35.0113, 37.0532],
+            "حمص (المدينة)": [34.7324, 36.7137],
+            "اللاذقية (المدينة)": [35.5317, 35.7901],
+            "طرطوس (المدينة)": [34.8890, 35.8866],
+            "إدلب (المدينة)": [35.9306, 36.6339],
+            "درعا (المدينة)": [32.6184, 36.1014],
+            "السويداء (المدينة)": [32.7090, 36.5658],
+            "دير الزور (المدينة)": [35.3364, 40.1458],
+            "الحسكة (المدينة)": [36.5074, 40.7380],
+            "الرقة (المدينة)": [35.9525, 39.0089],
+            "القنيطرة": [33.1264, 35.8239]
+        };
+
+        function getClosestArea(lat, lng) {
+            let minDist = Infinity;
+            let closest = "غير محدد";
+            for (const [name, pos] of Object.entries(areaCenters)) {
+                const dist = Math.pow(lat - pos[0], 2) + Math.pow(lng - pos[1], 2);
+                if (dist < minDist) { minDist = dist; closest = name; }
+            }
+            return closest;
+        }
+
+        function getGovernorateFromArea(area) {
+            if (area.includes("دمشق")) return "دمشق وريفها";
+            if (area.includes("حلب")) return "حلب";
+            if (area.includes("حماه")) return "حماه";
+            if (area.includes("حمص")) return "حمص";
+            if (area.includes("اللاذقية")) return "اللاذقية";
+            if (area.includes("طرطوس")) return "طرطوس";
+            if (area.includes("إدلب")) return "إدلب";
+            if (area.includes("درعا")) return "درعا";
+            if (area.includes("السويداء")) return "السويداء";
+            if (area.includes("دير الزور")) return "دير الزور";
+            if (area.includes("الحسكة")) return "الحسكة";
+            if (area.includes("الرقة")) return "الرقة";
+            if (area.includes("القنيطرة")) return "القنيطرة";
+            return "غير محدد";
+        }
+
+        let allAlerts = [];
+        let currentFilter = 'day';
+        let currentGov = null;
+
+        function isWithinTimeRange(dateStr, filter) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            const day = 24 * 60 * 60 * 1000;
+            
+            if (filter === 'day') return diff <= day;
+            if (filter === 'week') return diff <= 7 * day;
+            if (filter === 'month') return diff <= 30 * day;
+            return true;
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            const filtered = allAlerts.filter(a => isWithinTimeRange(a.created_at, currentFilter));
+            document.getElementById('filterCount').innerText = filtered.length;
+
+            const govCounts = {};
+            filtered.forEach(alert => {
+                const area = getClosestArea(alert.latitude, alert.longitude);
+                const gov = getGovernorateFromArea(area);
+                govCounts[gov] = (govCounts[gov] || 0) + 1;
+            });
+
+            const sorted = Object.entries(govCounts).sort((a,b) => b[1] - a[1]);
+            const govList = document.getElementById('govList');
+            govList.innerHTML = '';
+            sorted.forEach(([gov, count]) => {
+                const div = document.createElement('div');
+                div.className = 'gov-item';
+                div.innerHTML = \`<span>\${gov}</span><span class="gov-badge">\${count} بلاغ</span>\`;
+                div.onclick = () => showAreaDetail(gov, filtered);
+                govList.appendChild(div);
+            });
+
+            // Update map
+            map.eachLayer(layer => { if (layer instanceof L.Marker) map.removeLayer(layer); });
+            filtered.forEach(alert => {
+                L.marker([alert.latitude, alert.longitude])
+                 .addTo(map)
+                 .bindPopup(\`<b>خطر!</b><br>هاتف: \${alert.phone_number}<br>الوقت: \${new Date(alert.created_at).toLocaleString('ar-SA')}\`);
+            });
+        }
+
+        function showAreaDetail(gov, filtered) {
+            currentGov = gov;
+            const areaCounts = {};
+            filtered.forEach(alert => {
+                const area = getClosestArea(alert.latitude, alert.longitude);
+                const govName = getGovernorateFromArea(area);
+                if (govName === gov) {
+                    areaCounts[area] = (areaCounts[area] || 0) + 1;
+                }
+            });
+
+            const sorted = Object.entries(areaCounts).sort((a,b) => b[1] - a[1]);
+            document.getElementById('areaTitle').innerText = \`محافظة \${gov} - المناطق الأكثر خطراً\`;
+            const areaList = document.getElementById('areaList');
+            areaList.innerHTML = '';
+            sorted.forEach(([area, count]) => {
+                const div = document.createElement('div');
+                div.className = 'area-item';
+                div.innerHTML = \`<span>\${area}</span><span class="gov-badge">\${count} بلاغ</span>\`;
+                areaList.appendChild(div);
+            });
+
+            document.getElementById('govView').style.display = 'none';
+            document.getElementById('areaView').classList.add('active');
+        }
+
+        function showGovView() {
+            document.getElementById('govView').style.display = 'block';
+            document.getElementById('areaView').classList.remove('active');
+        }
+
+        async function fetchData() {
+            const response = await fetch('/api/public/alerts');
+            if (!response.ok) return;
+            allAlerts = await response.json();
+            updateDisplay();
+        }
+
+        fetchData();
+        setInterval(fetchData, 15000);
+    </script>
+</body>
+</html>`;
+}
+"ريف دمشق - دوما": [33.5719, 36.4025],
+    "ريف دمشق - الزبداني": [33.7258, 36.0964],
+        "ريف دمشق - السيدة زينب": [33.4461, 36.3353],
+
+            // Aleppo
+            "حلب (المدينة)": [36.2021, 37.1343],
+                "حلب - عفرين": [36.5097, 36.8689],
+                    "حلب - الباب": [36.3697, 37.5147],
+                        "حلب - منبج": [36.5281, 37.9549],
+
+                            // Hama (Detailed as requested)
+                            "حماه (المدينة)": [35.1318, 36.7578],
+                                "حماه - مصياف": [35.0653, 36.3421],
+                                    "حماه - سلمية": [35.0113, 37.0532],
+                                        "حماه - السقيلبية": [35.3853, 36.4497],
+                                            "حماه - محردة": [35.2514, 36.5744],
+                                                "حماه - حلفايا": [35.2650, 36.6083],
+
+                                                    // Homs
+                                                    "حمص (المدينة)": [34.7324, 36.7137],
+                                                        "حمص - تدمر": [34.5601, 38.2672],
+                                                            "حمص - القصير": [34.5095, 36.5796],
+                                                                "حمص - تلكلخ": [34.6644, 36.2575],
+
+                                                                    // Latakia
+                                                                    "اللاذقية (المدينة)": [35.5317, 35.7901],
+                                                                        "اللاذقية - جبلة": [35.3615, 35.9256],
+                                                                            "اللاذقية - القرداحة": [35.4578, 36.0617],
+                                                                                "اللاذقية - الحفة": [35.6044, 36.0528],
+
+                                                                                    // Tartus
+                                                                                    "طرطوس (المدينة)": [34.8890, 35.8866],
+                                                                                        "طرطوس - بانياس": [35.1834, 35.9458],
+                                                                                            "طرطوس - صافيتا": [34.8219, 36.1172],
+                                                                                                "طرطوس - الدريكيش": [34.8969, 36.1361],
+
+                                                                                                    // Idlib
+                                                                                                    "إدلب (المدينة)": [35.9306, 36.6339],
+                                                                                                        "إدلب - جسر الشغور": [35.8156, 36.3217],
+                                                                                                            "إدلب - معرة النعمان": [35.6447, 36.6711],
+
+                                                                                                                // Daraa
+                                                                                                                "درعا (المدينة)": [32.6184, 36.1014],
+                                                                                                                    "درعا - الصنمين": [33.0678, 36.1786],
+                                                                                                                        "درعا - إزرع": [32.8683, 36.2508],
+
+                                                                                                                            // Suwayda
+                                                                                                                            "السويداء (المدينة)": [32.7090, 36.5658],
+                                                                                                                                "السويداء - شهبا": [32.8550, 36.6264],
+                                                                                                                                    "السويداء - صلخد": [32.4939, 36.7083],
+
+                                                                                                                                        // Deir ez-Zor
+                                                                                                                                        "دير الزور (المدينة)": [35.3364, 40.1458],
+                                                                                                                                            "دير الزور - البوكمال": [34.4533, 40.9114],
+                                                                                                                                                "دير الزور - الميادين": [35.0200, 40.4539],
+
+                                                                                                                                                    // Hasakah
+                                                                                                                                                    "الحسكة (المدينة)": [36.5074, 40.7380],
+                                                                                                                                                        "الحسكة - القامشلي": [37.0503, 41.2291],
+
+                                                                                                                                                            // Raqqa
+                                                                                                                                                            "الرقة (المدينة)": [35.9525, 39.0089],
+                                                                                                                                                                "الرقة - الثورة (الطبقة)": [35.8392, 38.5447],
+
+                                                                                                                                                                    // Quneitra
+                                                                                                                                                                    "القنيطرة": [33.1264, 35.8239]
+};
+
+function getClosestArea(lat, lng) {
+    let minDict = Infinity;
+    let closest = "غير محدد";
+    for (const [name, pos] of Object.entries(areaCenters)) {
+        // Approximate distance calculation (Euclidean is fine for small scale comparison)
+        const dist = Math.pow(lat - pos[0], 2) + Math.pow(lng - pos[1], 2);
+        if (dist < minDict) { minDict = dist; closest = name; }
+    }
+    return closest;
+}
+
+let chart;
+function updateChart(data) {
+    const counts = {};
+    data.forEach(a => {
+        const area = getClosestArea(a.latitude, a.longitude);
+        counts[area] = (counts[area] || 0) + 1;
+    });
+
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const labels = sorted.map(i => i[0]);
+    const values = sorted.map(i => i[1]);
+
+    const ctx = document.getElementById('dangerChart').getContext('2d');
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'عدد البلاغات',
+                data: values,
+                backgroundColor: '#e91e63',
+                borderRadius: 5
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+}
+
+async function fetchData() {
+    const response = await fetch('/api/data');
+    if (response.status === 401) return;
+    const data = await response.json();
+
+    document.getElementById('todayCount').innerText = data.stats.today;
+
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+
+    // تنظيف الماركرز السابقة (اختياري، هنا سنضيف فقط الجديد)
+    data.alerts.forEach(alert => {
+        const row = \`<tr>
+                    <td>\${alert.phone_number}</td>
+                    <td>\${alert.latitude.toFixed(2)},\${alert.longitude.toFixed(2)}</td>
+                    <td><a href="https://www.google.com/maps?q=\${alert.latitude},\${alert.longitude}" target="_blank" class="btn">تتبع</a></td>
+                </tr>\`;
+                tbody.innerHTML += row;
+
+                L.marker([alert.latitude, alert.longitude])
+                 .addTo(map)
+                 .bindPopup(\`<b>خطر!</b><br>هاتف: \${alert.phone_number}<br>الوقت: \${new Date(alert.created_at).toLocaleTimeString('ar-SA')}\`);
+            });
+
+            updateChart(data.alerts);
+        }
+
+        fetchData();
+        setInterval(fetchData, 15000); // تحديث كل 15 ثانية لمواكبة الخطر
+    </script>
+</body>
+</html>`;
+    }

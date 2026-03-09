@@ -32,7 +32,12 @@ import com.example.hersafe.data.local.entities.Contact;
 import com.example.hersafe.data.remote.DirectionsApiService;
 import com.example.hersafe.data.remote.DirectionsResponse;
 import com.example.hersafe.data.remote.RetrofitClient;
+import com.example.hersafe.service.LiveLocationService;
+import com.example.hersafe.utils.MapMarkerHelper;
 import com.example.hersafe.utils.MapService;
+import com.example.hersafe.data.preferences.SessionManager;
+import android.content.Intent;
+import android.os.Build;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -83,6 +88,7 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
     private LatLng destinationLatLng;
     private View fabRestore;
     private int initialApiDurationSeconds = 0; // Store API duration
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,6 +104,7 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
         initViews();
         initData();
         checkPermissions();
+        sessionManager = SessionManager.getInstance(this);
         
         // Initialize Map
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -327,6 +334,20 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
             // If user clicked map, we could store that LatLng, but geocoding string is safer for now
             geocodeAndDrawRoute(location, destinationStr);
             
+            // Check Telegram Setup
+            String chatId = SessionManager.getInstance(this).getTelegramChatId();
+            if (chatId != null && !chatId.isEmpty() && chatId.matches("[-0-9]+")) {
+                 Intent locationIntent = new Intent(this, LiveLocationService.class);
+                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                     startForegroundService(locationIntent);
+                 } else {
+                     startService(locationIntent);
+                 }
+                 Log.d("SafeJourney", "LiveLocationService started for Journey.");
+            } else {
+                 Toast.makeText(this, "تنبيه: لم يتم ربط تطبيق التلجرام لمشاركة الموقع", Toast.LENGTH_LONG).show();
+            }
+
             sendStartSms(destinationStr, location);
             showActiveUI();
             
@@ -360,7 +381,10 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
                 
                 if (startLocation != null) {
                     LatLng startLatLng = new LatLng(startLocation.getLatitude(), startLocation.getLongitude());
-                    mMap.addMarker(new MarkerOptions().position(startLatLng).title("أنا"));
+                    // Use profile photo as the user location marker
+                    String photoPath = sessionManager != null ? sessionManager.getProfilePhotoPath() : null;
+                    com.google.android.gms.maps.model.BitmapDescriptor markerIcon = MapMarkerHelper.createProfileMarker(this, photoPath);
+                    mMap.addMarker(new MarkerOptions().position(startLatLng).title("أنا").icon(markerIcon));
                     fetchRoute(startLatLng, endLatLng);
                 } else {
                     // Just searching, move camera
@@ -498,14 +522,23 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
             Toast.makeText(this, "تم إرسال رسالة الوصول بسلام", Toast.LENGTH_SHORT).show();
         } else {
             // Danger
-            fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
-                String locLink = (location != null) ? 
-                    "http://maps.google.com/?q=" + location.getLatitude() + "," + location.getLongitude() : 
-                    "Unknown";
-                sendSms(selectedContact.getPhone(), "خطر!! أنا في حالة طارئة في رحلتي. موقعي: " + locLink);
-            });
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
+                    String locLink = (location != null) ? 
+                        "http://maps.google.com/?q=" + location.getLatitude() + "," + location.getLongitude() : 
+                        "Unknown";
+                    sendSms(selectedContact.getPhone(), "خطر!! أنا في حالة طارئة في رحلتي. موقعي: " + locLink);
+                });
+            } else {
+                sendSms(selectedContact.getPhone(), "خطر!! أنا في حالة طارئة في رحلتي. (الموقع غير متوفر)");
+            }
             Toast.makeText(this, "تم إرسال تنبيه خطر!", Toast.LENGTH_SHORT).show();
         }
+        
+        // Stop Background Service
+        Intent locationIntent = new Intent(this, LiveLocationService.class);
+        stopService(locationIntent);
+
         showSetupUI();
         if (mMap != null) mMap.clear();
         isJourneyActive = false; // Allow map changes again

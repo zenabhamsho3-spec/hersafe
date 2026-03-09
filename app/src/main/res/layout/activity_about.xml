@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:layoutDirection="rtl"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center_horizontal">
+
+        <!-- Logo at the top center -->
+        <ImageView
+            android:id="@+id/ivLogo"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:src="@drawable/logo"
+            android:scaleType="fitCenter"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="عن تطبيق HerSafe"
+            android:textColor="@color/hersafe_title"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Description -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="تطبيق HerSafe ليس مجرد تطبيق إلكتروني، بل هو درع رقمي صُمم خصيصاً لتعزيز أمان المرأة وتمكينها من التحرك بثقة وحرية في كل الأوقات. يوفر التطبيق حلولاً ذكية وسريعة مثل نداء الاستغاثة (SOS)، مشاركة الموقع الحي، والتوثيق السري للأدلة."
+            android:textColor="#333"
+            android:textSize="16sp"
+            android:lineSpacingExtra="4dp"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Academic Background Section -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="الخلفية الأكاديمية:"
+            android:textColor="@color/hersafe_title"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="تم ابتكار وتطوير هذا النظام بكل فخر كـ مشروع تخرج من قِبل مجموعة من طالبات [كلية التطبيقية] في جامعة حماة للعام الجامعي [2025/2026].\nهدفنا لم يكن فقط تلبية متطلب أكاديمي، بل تسخير التقنية التي تعلمناها لتقديم حل حقيقي لمشكلة مجتمعية تهمنا جميعاً."
+            android:textColor="#333"
+            android:textSize="16sp"
+            android:lineSpacingExtra="4dp"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Development Team Section -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="فريق التطوير:"
+            android:textColor="@color/hersafe_title"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="• سدرا ابراهيم الايوب\n• جنات ابراهيم الايوب\n• زينب حسن حمشو احمد"
+            android:textColor="#333"
+            android:textSize="16sp"
+            android:lineSpacingExtra="4dp"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Supervisors Section -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="بإشراف:"
+            android:textColor="@color/hersafe_title"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="• الدكتور المهندس احمد رياض كردي\n• المهندسة طلة دندشلي"
+            android:textColor="#333"
+            android:textSize="16sp"
+            android:lineSpacingExtra="4dp"
+            android:layout_marginBottom="32dp" />
+
+        <!-- Note Section -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="#FFF3E0"
+            app:cardCornerRadius="8dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="#FFB74D"
+            android:layout_marginBottom="24dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ملاحظة 🎓🌟"
+                    android:textColor="#E65100"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="هذا التطبيق هو نموذج أولي (Prototype) تم تطويره لأغراض أكاديمية كمشروع تخرج. يُرجى الاعتماد دائماً على الجهات الأمنية الرسمية في حالات الخطر الحقيقي."
+                    android:textColor="#BF360C"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Back Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBack"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="عودة للاعدادات"
+            app:cornerRadius="12dp"
+            android:backgroundTint="@color/hersafe_pink_bg"
+            android:textSize="16sp" />
+
+    </LinearLayout>
+</ScrollView>

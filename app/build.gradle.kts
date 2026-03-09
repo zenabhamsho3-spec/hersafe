@@ -64,4 +64,8 @@ dependencies {
 
     implementation(libs.lifecycle.service)
     implementation("androidx.media:media:1.7.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+
+    // ZXing for Telegram QR Code Pairing
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 }

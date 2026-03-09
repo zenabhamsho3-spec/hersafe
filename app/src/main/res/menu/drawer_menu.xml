@@ -23,6 +23,11 @@
             android:title="@string/menu_about" />
 
         <item
+            android:id="@+id/nav_high_risk"
+            android:icon="@drawable/ic_alert_triangle"
+            android:title="@string/title_high_risk_areas" />
+
+        <item
             android:id="@+id/nav_logout"
             android:icon="@drawable/ic_lock"
             android:title="@string/menu_logout" />

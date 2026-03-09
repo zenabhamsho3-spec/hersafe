@@ -1,0 +1,10 @@
+name = "hersafe-backend"
+main = "src/index.js"
+compatibility_date = "2024-01-30"
+
+account_id = "129a2bf74612ba7e7b38e498017a17ce"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hersafe-db"
+database_id = "5b98ba6e-7722-4159-aaa1-cf5e88355dda"

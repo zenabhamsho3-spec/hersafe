@@ -1,0 +1,58 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- الظل أو الإطار الخارجي الأزرق الفاتح -->
+    <path
+        android:fillColor="#E0F2F9"
+        android:pathData="M 52 12 L 88 27 Q 88 65 52 95 Q 18 65 18 27 Z" />
+
+    <!-- النصف الأيسر للدرع (وردي فاتح) -->
+    <path
+        android:fillColor="#F6B2D0"
+        android:pathData="M 50 10 L 15 25 Q 15 62 50 92 Z" />
+
+    <!-- النصف الأيمن للدرع (وردي غامق) -->
+    <path
+        android:fillColor="#E887B0"
+        android:pathData="M 50 10 L 85 25 Q 85 62 50 92 Z" />
+
+    <!-- الإطار الأسود الخارجي للدرع -->
+    <path
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="4"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M 50 10 L 85 25 Q 85 62 50 92 Q 15 62 15 25 Z" />
+
+    <!-- الخط العمودي الفاصل (الجزء العلوي) -->
+    <path
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M 50 10 L 50 28" />
+
+    <!-- الخط العمودي الفاصل (الجزء السفلي الذي يمثل رمز الأنثى) -->
+    <path
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M 50 58 L 50 92" />
+
+    <!-- الدائرة الخاصة برمز الأنثى -->
+    <path
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="4"
+        android:fillColor="#00000000"
+        android:pathData="M 50,43 m -15,0 a 15,15 0 1,0 30,0 a 15,15 0 1,0 -30,0" />
+
+    <!-- الخط الأفقي لرمز الأنثى (علامة الجمع) -->
+    <path
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M 38 73 L 62 73" />
+
+</vector>

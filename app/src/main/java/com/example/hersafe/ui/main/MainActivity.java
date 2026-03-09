@@ -24,6 +24,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.example.hersafe.R;
+import com.example.hersafe.service.LiveLocationService;
 import com.example.hersafe.service.VideoRecordingService;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.navigation.NavigationView;
@@ -31,6 +32,8 @@ import com.example.hersafe.ui.features.sos.SosAlertActivity;
 import com.example.hersafe.ui.features.journey.SafeJourneyActivity;
 import com.example.hersafe.ui.features.contacts.ContactsActivity;
 import com.example.hersafe.ui.auth.LoginActivity;
+import com.example.hersafe.data.preferences.SessionManager;
+import android.os.Handler;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -38,6 +41,16 @@ public class MainActivity extends AppCompatActivity {
     private NavigationView navigationView;
     private static final int CAMERA_PERMISSION_CODE = 100;
     private static final int VIDEO_RECORD_PERMISSION_CODE = 101;
+    private SessionManager sessionManager;
+
+    private final Handler serviceMonitorHandler = new Handler();
+    private final Runnable serviceMonitorRunnable = new Runnable() {
+        @Override
+        public void run() {
+            // Kept for any future use; no-op for now.
+            serviceMonitorHandler.postDelayed(this, 5000);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,7 +101,14 @@ public class MainActivity extends AppCompatActivity {
                     Intent intent = new Intent(MainActivity.this, com.example.hersafe.ui.profile.ProfileActivity.class);
                     startActivity(intent);
                 } else if (id == R.id.nav_notification) {
-                    Toast.makeText(MainActivity.this, "لا توجد إشعارات", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(MainActivity.this, com.example.hersafe.ui.notifications.NotificationsActivity.class);
+                    startActivity(intent);
+                } else if (id == R.id.nav_high_risk) {
+                    Intent intent = new Intent(MainActivity.this, com.example.hersafe.ui.features.reports.HighRiskAreasActivity.class);
+                    startActivity(intent);
+                } else if (id == R.id.nav_about) {
+                    Intent intent = new Intent(MainActivity.this, com.example.hersafe.ui.profile.AboutActivity.class);
+                    startActivity(intent);
                 } else if (id == R.id.nav_logout) {
                     performLogout();
                 }
@@ -122,7 +142,7 @@ public class MainActivity extends AppCompatActivity {
         if (btnHelpline != null) {
             btnHelpline.setOnClickListener(v -> {
                 Intent intent = new Intent(Intent.ACTION_DIAL);
-                intent.setData(Uri.parse("tel:911"));
+                intent.setData(Uri.parse("tel:112"));
                 startActivity(intent);
             });
         }
@@ -233,14 +253,13 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // 2. Register receiver for video state updates
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            registerReceiver(videoStateReceiver, new android.content.IntentFilter("com.example.hersafe.VIDEO_STATE_CHANGED"), RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(videoStateReceiver, new android.content.IntentFilter("com.example.hersafe.VIDEO_STATE_CHANGED"));
-        }
+        ContextCompat.registerReceiver(this, videoStateReceiver, new android.content.IntentFilter("com.example.hersafe.VIDEO_STATE_CHANGED"), ContextCompat.RECEIVER_NOT_EXPORTED);
         
         // Update UI state immediately based on service status
         updateCameraIcon(com.example.hersafe.service.VideoRecordingService.isServiceRunning);
+
+        // Start monitoring services for force-stop panel
+        serviceMonitorHandler.post(serviceMonitorRunnable);
         
         // 3. Start Volume Service (Foreground)
         // even if SOS trigger is disabled there.
@@ -272,6 +291,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        serviceMonitorHandler.removeCallbacks(serviceMonitorRunnable);
         try {
             unregisterReceiver(videoStateReceiver);
         } catch (Exception e) {}
@@ -314,6 +334,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void performLogout() {
+        SessionManager.getInstance(this).logout();
         Intent intent = new Intent(MainActivity.this, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);

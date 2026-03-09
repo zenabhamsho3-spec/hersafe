@@ -242,6 +242,39 @@
 
                 <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F0F0" android:layout_marginHorizontal="12dp"/>
 
+                <!-- عنصر: ربط حساب التلجرام -->
+                <LinearLayout
+                    android:id="@+id/btnTelegramPairing"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:gravity="center_vertical"
+                    android:padding="12dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_share"
+                        app:tint="@color/hersafe_title" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="16dp"
+                        android:text="ربط حساب التلجرام"
+                        android:textColor="@color/black"
+                        android:textSize="16sp" />
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_arrow_left" />
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F0F0" android:layout_marginHorizontal="12dp"/>
+
                 <!-- عنصر: تسجيل الخروج -->
                 <LinearLayout
                     android:id="@+id/btnLogout"
@@ -275,6 +308,7 @@
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
 
     </LinearLayout>
 </ScrollView>

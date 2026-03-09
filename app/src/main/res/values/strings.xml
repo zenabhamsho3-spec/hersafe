@@ -115,4 +115,17 @@
     <string name="btn_arrived_safe">وصلت بأمان</string>
     <string name="btn_danger">خطر!</string>
 
+    <!-- المناطق الأكثر خطراً (High Risk Areas) -->
+    <string name="title_high_risk_areas">المناطق الأكثر خطراً</string>
+    <string name="label_select_governorate">اختاري المحافظة لعرض التفاصيل</string>
+    <string name="title_area_detail">تفاصيل المخاطر</string>
+    <string name="filter_day">يومي</string>
+    <string name="filter_week">أسبوعي</string>
+    <string name="filter_month">شهري</string>
+    <string name="label_risk_level">مستوى الخطر:</string>
+    <string name="risk_high">مرتفع جداً</string>
+    <string name="risk_medium">متوسط</string>
+    <string name="risk_low">منخفض</string>
+    <string name="label_total_alerts">عدد البلاغات:</string>
+
 </resources>

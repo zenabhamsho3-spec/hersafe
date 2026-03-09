@@ -19,7 +19,7 @@ import com.example.hersafe.data.local.entities.User;
  */
 @Database(
     entities = {Contact.class, User.class, Incident.class},
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {

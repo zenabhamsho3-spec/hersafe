@@ -26,7 +26,6 @@
             android:textStyle="bold" />
 
         <!-- الاسم الأول -->
-        <!-- لاحظ هنا: استخدمنا Widget.HerSafe بدلاً من MaterialComponents -->
         <com.google.android.material.textfield.TextInputLayout
             style="@style/Widget.HerSafe.TextInputLayout"
             android:layout_width="match_parent"
@@ -34,6 +33,7 @@
             android:layout_marginBottom="12dp"
             android:hint="@string/first_name">
             <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etFirstName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="textPersonName" />
@@ -47,6 +47,7 @@
             android:layout_marginBottom="12dp"
             android:hint="@string/last_name">
             <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etLastName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="textPersonName" />
@@ -60,6 +61,7 @@
             android:layout_marginBottom="12dp"
             android:hint="@string/phone_number">
             <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etPhone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="phone" />
@@ -73,6 +75,7 @@
             android:layout_marginBottom="12dp"
             android:hint="@string/email">
             <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etEmail"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="textEmailAddress" />
@@ -86,6 +89,7 @@
             android:layout_marginBottom="16dp"
             android:hint="@string/birth_date">
             <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etBirthDate"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:focusable="false"
@@ -103,12 +107,16 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="20dp"
+                android:enabled="false"
                 android:text="@string/gender_male" />
             <RadioButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/gender_female"
-                android:checked="true"/>
+                android:checked="true"
+                android:buttonTint="@color/primaryColor"
+                android:textColor="@color/primaryColor"
+                android:enabled="false"/>
         </RadioGroup>
 
         <!-- مكان الإقامة -->
@@ -119,8 +127,38 @@
             android:layout_marginBottom="12dp"
             android:hint="@string/residence">
             <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etResidence"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:inputType="textPostalAddress" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- اسم الأب -->
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.HerSafe.TextInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:hint="اسم الأب">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etFatherName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPersonName" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- اسم الأم -->
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.HerSafe.TextInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:hint="اسم الأم">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etMotherName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPersonName" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- كلمة المرور -->
@@ -132,6 +170,7 @@
             app:passwordToggleEnabled="true"
             android:hint="@string/password">
             <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etPassword"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="textPassword" />
@@ -139,6 +178,7 @@
 
         <!-- زر إنشاء الحساب -->
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSignup"
             android:layout_width="match_parent"
             android:layout_height="60dp"
             android:layout_marginTop="24dp"
