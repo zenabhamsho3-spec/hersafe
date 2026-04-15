@@ -164,7 +164,7 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
         findViewById(R.id.btnSearch).setOnClickListener(v -> {
             String query = etDestination.getText().toString().trim();
             if (!query.isEmpty()) {
-                geocodeAndDrawRoute(null, query); // null start means just search dist
+                getCurrentLocationAndDrawRoute(query);
             }
         });
 
@@ -172,14 +172,7 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
         rgModes.setOnCheckedChangeListener((group, checkedId) -> {
              String query = etDestination.getText().toString().trim();
              if (!query.isEmpty()) {
-                 // Trigger route update if destination is set
-                 // We need to know start location. If we have it (from previous search), use it.
-                 // For now, if we don't have startLocation, we just search destination again.
-                 if (startLocation != null) {
-                     geocodeAndDrawRoute(startLocation, query);
-                 } else {
-                     geocodeAndDrawRoute(null, query);
-                 }
+                 getCurrentLocationAndDrawRoute(query);
              }
         });
 
@@ -188,7 +181,7 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
                 String query = etDestination.getText().toString().trim();
                 if (!query.isEmpty()) {
-                    geocodeAndDrawRoute(null, query);
+                    getCurrentLocationAndDrawRoute(query);
                 }
                 return true;
             }
@@ -254,20 +247,34 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
         }
     }
 
+    @SuppressLint("MissingPermission")
     private void enableMyLocation() {
+        Log.d("SafeJourney", "enableMyLocation() called");
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
              if (mMap != null) {
+                Log.d("SafeJourney", "Setting MyLocationEnabled true");
                 mMap.setMyLocationEnabled(true);
                 mMap.getUiSettings().setMyLocationButtonEnabled(true);
                 
                 fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
                     if (location != null) {
+                        Log.d("SafeJourney", "getLastLocation(): Success " + location.getLatitude() + "," + location.getLongitude());
                         this.startLocation = location;
                         LatLng current = new LatLng(location.getLatitude(), location.getLongitude());
                         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(current, 15));
+                    } else {
+                        Log.w("SafeJourney", "getLastLocation(): Location is null, requesting fresh update");
+                        requestSingleLocationUpdate();
                     }
+                }).addOnFailureListener(e -> {
+                    Log.e("SafeJourney", "getLastLocation(): Failed", e);
+                    requestSingleLocationUpdate();
                 });
+             } else {
+                 Log.e("SafeJourney", "mMap is null in enableMyLocation");
              }
+        } else {
+            Log.w("SafeJourney", "Location permission NOT granted in enableMyLocation");
         }
     }
 
@@ -284,20 +291,25 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
 
             mMap.clear();
             mMap.addMarker(new MarkerOptions().position(latLng).title("الوجهة المحددة"));
+            destinationLatLng = latLng; // Store the clicked destination
             
             // Reverse Geocode to show address in EditText
             Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+            String addressText;
             try {
                 List<Address> addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
                 if (addresses != null && !addresses.isEmpty()) {
-                    String address = addresses.get(0).getAddressLine(0);
-                    etDestination.setText(address);
+                    addressText = addresses.get(0).getAddressLine(0);
                 } else {
-                    etDestination.setText(String.format(Locale.US, "%.5f, %.5f", latLng.latitude, latLng.longitude));
+                    addressText = String.format(Locale.US, "%.5f, %.5f", latLng.latitude, latLng.longitude);
                 }
             } catch (IOException e) {
-                etDestination.setText(String.format(Locale.US, "%.5f, %.5f", latLng.latitude, latLng.longitude));
+                addressText = String.format(Locale.US, "%.5f, %.5f", latLng.latitude, latLng.longitude);
             }
+            etDestination.setText(addressText);
+            
+            // Draw route from current location to clicked destination
+            getCurrentLocationAndDrawRoute(addressText);
         });
     }
 
@@ -401,20 +413,31 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
     }
     
     private void fetchRoute(LatLng start, LatLng end) {
+        Log.d("SafeJourney", "fetchRoute() from " + start + " to " + end);
         String origin = start.latitude + "," + start.longitude;
         String dest = end.latitude + "," + end.longitude;
         String apiKey = getApiKey();
         
-        if (apiKey == null) return;
+        if (apiKey == null) {
+            Log.e("SafeJourney", "API KEY is null!");
+            Toast.makeText(this, "خطأ: مفتاح الخرائط مفقود", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         String mode = getSelectedMode();
+        Log.d("SafeJourney", "Requesting directions for mode: " + mode);
 
-        // Request alternatives=true to get multiple routes
         RetrofitClient.getService().getDirections(origin, dest, apiKey, true, mode).enqueue(new Callback<DirectionsResponse>() {
             @Override
             public void onResponse(Call<DirectionsResponse> call, Response<DirectionsResponse> response) {
-                if (response.isSuccessful() && response.body() != null && !response.body().routes.isEmpty()) {
+                if (response.isSuccessful() && response.body() != null) {
+                    if (response.body().routes.isEmpty()) {
+                        Log.w("SafeJourney", "API returned 0 routes");
+                        Toast.makeText(SafeJourneyActivity.this, "لم يتم العثور على مسارات", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
                     
+                    Log.d("SafeJourney", "API returned " + response.body().routes.size() + " routes");
                     // Find the shortest route
                     List<DirectionsResponse.Route> routes = response.body().routes;
                     DirectionsResponse.Route bestRoute = null;
@@ -432,9 +455,6 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
                             }
                         }
                         
-                        // Pick shortest distance. 
-                        // Note: For "transit", Google usually returns the best route first, 
-                        // but logic to pick shortest distance is fine for now.
                         if (bestRoute == null || currentDistance < minDistance) {
                             minDistance = currentDistance;
                             bestDuration = currentDuration;
@@ -442,12 +462,12 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
                         }
                     }
                     
-                    // Store for Active Trip consistency
                     initialApiDurationSeconds = bestDuration;
 
                     if (bestRoute != null && bestRoute.overviewPolyline != null) {
                         String encodedPath = bestRoute.overviewPolyline.points;
                         List<LatLng> path = MapService.decodePolyline(encodedPath);
+                        Log.d("SafeJourney", "Drawing polyline with " + path.size() + " points");
                         
                         mMap.addPolyline(new PolylineOptions().addAll(path).color(ContextCompat.getColor(SafeJourneyActivity.this, R.color.route_dark_pink)).width(10));
                         
@@ -462,16 +482,26 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
                              mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(start, 15));
                         }
                         
-                        // Update UI with Duration
                         updateDurationUI(bestDuration, mode);
+                    } else {
+                        Log.e("SafeJourney", "Best route or polyline is null");
+                        Toast.makeText(SafeJourneyActivity.this, "تعذر معالجة بيانات المسار", Toast.LENGTH_SHORT).show();
                     }
+                } else {
+                    Log.e("SafeJourney", "API Response Error: " + response.code() + " " + response.message());
+                    try {
+                        if (response.errorBody() != null) {
+                            Log.e("SafeJourney", "Error Body: " + response.errorBody().string());
+                        }
+                    } catch (IOException ignored) {}
+                    Toast.makeText(SafeJourneyActivity.this, "خطأ من خادم الخرائط: " + response.code(), Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<DirectionsResponse> call, Throwable t) {
                 Log.e("SafeJourney", "Route fetch failed", t);
-                Toast.makeText(SafeJourneyActivity.this, "فشل تحميل المسار", Toast.LENGTH_SHORT).show();
+                Toast.makeText(SafeJourneyActivity.this, "فشل الاتصال بخادم الخرائط", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -646,6 +676,79 @@ public class SafeJourneyActivity extends AppCompatActivity implements OnMapReady
                 .build();
         
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, android.os.Looper.getMainLooper());
+    }
+
+    /**
+     * Gets current GPS location and then draws a route to the given destination query.
+     * If getLastLocation() returns null, requests a fresh single location update.
+     */
+    @SuppressLint("MissingPermission")
+    private void getCurrentLocationAndDrawRoute(String query) {
+        Log.d("SafeJourney", "getCurrentLocationAndDrawRoute() for: " + query);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            Log.w("SafeJourney", "Permission missing in getCurrentLocationAndDrawRoute");
+            checkPermissions();
+            return;
+        }
+        fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
+            if (location != null) {
+                Log.d("SafeJourney", "Got last location for route drawing");
+                startLocation = location;
+                geocodeAndDrawRoute(location, query);
+            } else {
+                Log.d("SafeJourney", "Last location null, requesting fresh one for route...");
+                // Request a fresh location update
+                LocationRequest req = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+                        .setMaxUpdates(1)
+                        .build();
+                fusedLocationClient.requestLocationUpdates(req, new LocationCallback() {
+                    @Override
+                    public void onLocationResult(@NonNull LocationResult locationResult) {
+                        fusedLocationClient.removeLocationUpdates(this);
+                        Location loc = locationResult.getLastLocation();
+                        if (loc != null) {
+                            Log.d("SafeJourney", "Got fresh location for route drawing");
+                            startLocation = loc;
+                            geocodeAndDrawRoute(loc, query);
+                        } else {
+                            Log.e("SafeJourney", "Still no location after fresh request");
+                            Toast.makeText(SafeJourneyActivity.this,
+                                "تعذر تحديد موقعك الحالي", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }, android.os.Looper.getMainLooper());
+            }
+        });
+    }
+
+    /**
+     * Requests a single high-accuracy location update to initialize startLocation.
+     * Called as fallback when getLastLocation() returns null during map initialization.
+     */
+    @SuppressLint("MissingPermission")
+    private void requestSingleLocationUpdate() {
+        Log.d("SafeJourney", "requestSingleLocationUpdate() called");
+        LocationRequest req = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+                .setMaxUpdates(1)
+                .build();
+        fusedLocationClient.requestLocationUpdates(req, new LocationCallback() {
+            @Override
+            public void onLocationResult(@NonNull LocationResult locationResult) {
+                fusedLocationClient.removeLocationUpdates(this);
+                Location location = locationResult.getLastLocation();
+                if (location != null) {
+                    Log.d("SafeJourney", "requestSingleLocationUpdate: Success");
+                    startLocation = location;
+                    LatLng current = new LatLng(location.getLatitude(), location.getLongitude());
+                    if (mMap != null) {
+                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(current, 15));
+                    }
+                } else {
+                    Log.e("SafeJourney", "requestSingleLocationUpdate: Location is still null");
+                }
+            }
+        }, android.os.Looper.getMainLooper());
     }
 
     @Override

@@ -65,8 +65,16 @@ public class RetrofitClient {
     }
 
     public static DirectionsApiService getService() {
+        okhttp3.logging.HttpLoggingInterceptor logging = new okhttp3.logging.HttpLoggingInterceptor();
+        logging.setLevel(okhttp3.logging.HttpLoggingInterceptor.Level.BODY);
+
+        okhttp3.OkHttpClient client = new okhttp3.OkHttpClient.Builder()
+                .addInterceptor(logging)
+                .build();
+
         return new Retrofit.Builder()
                 .baseUrl("https://maps.googleapis.com/")
+                .client(client)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(DirectionsApiService.class);

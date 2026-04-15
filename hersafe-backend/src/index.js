@@ -61,8 +61,37 @@ export default {
                 return handleAdminData(env, corsHeaders);
             }
 
+            if (path === "/api/ai/analysis" && request.method === "GET") {
+                if (!await isAuthenticated(request)) return new Response('Unauthorized', { status: 401 });
+                return handleAIAnalysis(env, corsHeaders);
+            }
+
+            if (path === "/api/ai/force" && request.method === "GET") {
+                try {
+                    await env.DB.prepare("DELETE FROM ai_analysis").run();
+                    await runAIStep(env);
+                    return new Response(JSON.stringify({ success: true, message: "Forced AI step completed." }), {
+                        headers: { ...corsHeaders, "Content-Type": "application/json" }
+                    });
+                } catch (e) {
+                    return new Response(JSON.stringify({ success: false, error: e.message }), {
+                        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
+                    });
+                }
+            }
+
             if (path === "/login" && request.method === "POST") {
-                return handleLogin(request);
+                const { password } = await request.json();
+                if (password === "Admin123") {
+                    ctx.waitUntil(runAIStep(env));
+                    return new Response(JSON.stringify({ success: true }), {
+                        headers: {
+                            "Set-Cookie": "auth=true; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400",
+                            "Content-Type": "application/json"
+                        }
+                    });
+                }
+                return new Response(JSON.stringify({ success: false }), { status: 401, headers: { "Content-Type": "application/json" } });
             }
 
             if (path === "/api/public/alerts" && request.method === "GET") {
@@ -216,7 +245,7 @@ async function verifyTelegram(data) {
 
 async function initDB(env) {
     await env.DB.prepare(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, phone TEXT, password_hash TEXT, api_token TEXT, birthdate TEXT, residence TEXT, father_name TEXT, mother_name TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
-    // Migration: add new columns to existing tables (safe if already exist)
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS ai_analysis (id INTEGER PRIMARY KEY AUTOINCREMENT, analysis_json TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
     const newCols = ['birthdate TEXT', 'residence TEXT', 'father_name TEXT', 'mother_name TEXT'];
     for (const col of newCols) {
         try { await env.DB.prepare(`ALTER TABLE users ADD COLUMN ${col}`).run(); } catch (e) { /* column exists */ }
@@ -225,8 +254,8 @@ async function initDB(env) {
 }
 
 // Handlers
-async function handleLogin(request) {
-    const { password } = await request.json();
+async function handleLogin(data) {
+    const { password } = data;
     // Simple hardcoded password for demo
     if (password === "Admin123") {
         return new Response(JSON.stringify({ success: true }), {
@@ -425,6 +454,173 @@ async function handleAdminData(env, corsHeaders) {
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
+// Serve cached AI analysis
+async function handleAIAnalysis(env, corsHeaders) {
+    const cached = await env.DB.prepare("SELECT analysis_json, created_at FROM ai_analysis ORDER BY created_at DESC LIMIT 1").first();
+    if (cached) {
+        return new Response(cached.analysis_json, {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+    }
+    return new Response(JSON.stringify({ status: "pending", message: "جاري التحليل..." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+}
+
+// AI Standardization + Analysis Logic (Google AI Studio - Gemini)
+async function runAIStep(env) {
+    console.log("Starting AI Standardization Step (Gemini)...");
+    const apiKey = "AIzaSyDsgql_J0tLI2tULG2MsZxOues85WaLX-E";
+    const model = "gemini-1.5-flash"; // Stable model name
+
+    try {
+        // Check if fresh analysis exists (< 12h)
+        const cached = await env.DB.prepare("SELECT created_at FROM ai_analysis ORDER BY created_at DESC LIMIT 1").first();
+        if (cached) {
+            const age = Date.now() - new Date(cached.created_at + 'Z').getTime();
+            if (age < 12 * 60 * 60 * 1000) {
+                console.log("Fresh analysis exists, skipping AI call.");
+                return;
+            }
+        }
+
+        const result = await env.DB.prepare("SELECT id, latitude, longitude FROM alerts").all();
+        const alerts = result.results;
+        if (alerts.length === 0) return;
+
+        // GROUP UNIQUE LOCATIONS
+        const uniqueLocMap = new Map();
+        alerts.forEach(a => {
+            const key = `${a.latitude.toFixed(3)},${a.longitude.toFixed(3)}`;
+            if (!uniqueLocMap.has(key)) {
+                uniqueLocMap.set(key, { loc_id: key, lat: a.latitude, lng: a.longitude, alerts: [a.id] });
+            } else {
+                uniqueLocMap.get(key).alerts.push(a.id);
+            }
+        });
+
+        const dataToProcess = Array.from(uniqueLocMap.values()).map(u => ({
+            loc_id: u.loc_id, lat: u.lat, lng: u.lng
+        }));
+
+        const prompt = `أنت خبير في أمن المجتمع السوري ومحلل بيانات جغرافي دقيق جداً. أرسل لك المواقع الجغرافية (نطاقات) لتصنيفها.
+
+المطلوب الأول (الفرز المكاني):
+يجب أن تختار "المحافظة" (governorate) و "الحي/المنطقة" (area_detail) من قائمة المناطق السورية المعروفة حصراً لضمان الثبات. 
+قائمة المحافظات: (دمشق، ريف دمشق، حلب، حمص، حماة، اللاذقية، طرطوس، إدلب، دير الزور، الرقة، الحسكة، درعا، السويداء، القنيطرة).
+
+مثال لمناطق للمساعدة في القنص (Snapping):
+- حماة: (الحاضر، السوق، الأربعين، جنوب الملعب، الكليات، بياض، طريق حلب).
+- دمشق: (الميدان، المزة، أبورمانة، القصاع، باب توما، كفرسوسة، البرامكة).
+- حمص: (الوعر، الإنشاءات، الحمراء، كرم الشامي، الخالدية، جورة الشياح).
+
+المطلوب الثاني (التحليل الأمني):
+1. صنف كل موقع (loc_id) للمحافظة والحي بدقة.
+2. قدم تحليل وتقييم خطورة (1-5) يركز حصراً على أمان الفتيات (خطف، سرقة، مضايقات، أماكن مظلمة).
+
+البيانات: ${JSON.stringify(dataToProcess)}
+
+أعد الرد بتنسيق JSON حصراً بهذا الشكل:
+{
+  "locations": [{"loc_id": "...", "governorate": "حماة", "area_detail": "الحاضر"}],
+  "summary": {
+    "حماة": {
+      "risk_level": 4,
+      "risk_label": "مرتفع",
+      "areas": {
+        "الحاضر": {
+          "risk": 3,
+          "risk_label": "متوسط",
+          "causes": "...",
+          "recommendations": "..."
+        }
+      }
+    }
+  }
+}`;
+
+        console.log(`Sending to Gemini...`);
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: "application/json" }
+            })
+        });
+
+        if (!response.ok) {
+            console.error("Gemini API Error:", await response.text());
+            return;
+        }
+
+        const aiData = await response.json();
+        const content = aiData.candidates[0].content.parts[0].text;
+        console.log("Raw Gemini Response received.");
+        const parsed = JSON.parse(content);
+        console.log(`Parsed Gemini Response. Locations: ${parsed.locations ? parsed.locations.length : 0}`);
+
+        // Map back to alerts
+        if (parsed.locations && Array.isArray(parsed.locations)) {
+            const stmts = [];
+            parsed.locations.forEach(aiLoc => {
+                const group = uniqueLocMap.get(aiLoc.loc_id);
+                if (group) {
+                    group.alerts.forEach(alertId => {
+                        stmts.push(
+                            env.DB.prepare("UPDATE alerts SET governorate = ?, area_detail = ? WHERE id = ?")
+                            .bind(aiLoc.governorate, aiLoc.area_detail, alertId)
+                        );
+                    });
+                } else {
+                    console.log(`AI returned loc_id ${aiLoc.loc_id} but it was not found in our unique map.`);
+                }
+            });
+
+            if (stmts.length > 0) {
+                console.log(`Executing batch update for ${stmts.length} alerts...`);
+                const chunkSize = 20;
+                for (let i = 0; i < stmts.length; i += chunkSize) {
+                    await env.DB.batch(stmts.slice(i, i + chunkSize));
+                }
+                console.log(`Successfully mapped and standardized individual alerts.`);
+            }
+        }
+
+        // Add dynamic report counts back to the summary
+        if (parsed.summary) {
+            console.log("Processing summary with report counts...");
+            Object.keys(parsed.summary).forEach(govKey => {
+                let govTotal = 0;
+                const areas = parsed.summary[govKey].areas || {};
+                Object.keys(areas).forEach(areaKey => {
+                    const count = alerts.filter(a => {
+                        const key = `${a.latitude.toFixed(3)},${a.longitude.toFixed(3)}`;
+                        const aiLoc = parsed.locations ? parsed.locations.find(l => l.loc_id === key) : null;
+                        return aiLoc && aiLoc.governorate === govKey && aiLoc.area_detail === areaKey;
+                    }).length;
+                    
+                    areas[areaKey].count = count;
+                    govTotal += count;
+                });
+                parsed.summary[govKey].total = govTotal;
+            });
+            
+            const finalJsonStr = JSON.stringify(parsed);
+            console.log(`Saving final analysis to DB (JSON length: ${finalJsonStr.length})...`);
+            await env.DB.prepare("DELETE FROM ai_analysis").run();
+            await env.DB.prepare("INSERT INTO ai_analysis (analysis_json) VALUES (?)").bind(finalJsonStr).run();
+            console.log("Gemini AI analysis cached successfully.");
+        } else {
+            console.log("No summary found in Gemini response.");
+        }
+
+    } catch (e) {
+        console.error("AI Standardization Failed:", e.message);
+    }
+}
+
 async function handlePublicAlerts(env, corsHeaders) {
     const result = await env.DB.prepare("SELECT id, phone_number, latitude, longitude, created_at, governorate, area_detail, telegram_video_id FROM alerts ORDER BY created_at DESC LIMIT 500").all();
     return new Response(JSON.stringify(result.results), {
@@ -432,200 +628,180 @@ async function handlePublicAlerts(env, corsHeaders) {
     });
 }
 
-
 function dashboardHtml() {
     return `<!DOCTYPE html>
-<html dir="rtl">
+<html dir="rtl" lang="ar">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم الأمنية HerSafe</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root { --primary: #9c27b0; --dark: #1a102e; --bg: #f5f5f5; --text: #333; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: var(--bg); display: flex; flex-direction: column; height: 100vh; }
-        header { background: var(--dark); color: white; padding: 0.8rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-        .main-content { display: flex; flex: 1; overflow: hidden; padding: 15px; gap: 15px; }
-        .sidebar { width: 400px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
-        .map-container { flex: 1; position: relative; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #map { height: 100%; width: 100%; }
-        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .stats-item { text-align: center; }
-        .stats-count { font-size: 2.5rem; font-weight: bold; color: #e91e63; }
-        .filter-tabs { display: flex; gap: 10px; justify-content: center; margin: 15px 0; }
-        .filter-tab { padding: 8px 20px; background: #eee; border: none; border-radius: 20px; cursor: pointer; transition: 0.3s; font-weight: 500; }
-        .filter-tab.active { background: var(--primary); color: white; }
-        .gov-list { max-height: 400px; overflow-y: auto; }
-        .gov-item { padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; }
-        .gov-item:hover { background: #f9f9f9; }
-        .gov-badge { background: #e91e63; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; }
-        .area-detail { display: none; }
-        .area-detail.active { display: block; }
-        .area-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; font-size: 0.9rem; }
-        .back-btn { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; margin-bottom: 10px; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
-        /* Change default blue marker to dark pink using hue-rotate */
-        img.leaflet-marker-icon {
-            filter: hue-rotate(120deg) brightness(0.9);
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مركز عمليات HerSafe</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f0a1e;--card:rgba(30,20,60,0.85);--glass:rgba(255,255,255,0.06);--primary:#b44adf;--accent:#e91e63;--accent2:#ff6090;--text:#e8e0f0;--muted:#9a8fb8;--green:#4caf50;--orange:#ff9800;--red:#f44336}
+body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{background:linear-gradient(135deg,#1a102e 0%,#2d1b4e 100%);padding:12px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(180,74,223,0.3)}
+header h2{font-size:1.3rem;font-weight:700;background:linear-gradient(135deg,#e0b0ff,#ff6090);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logout-btn{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#ccc;padding:6px 18px;border-radius:20px;cursor:pointer;transition:.3s;font-family:inherit}
+.logout-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.main{display:flex;flex:1;overflow:hidden;padding:12px;gap:12px}
+.sidebar{width:420px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--primary) transparent}
+.sidebar::-webkit-scrollbar{width:5px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--primary);border-radius:10px}
+.map-wrap{flex:1;border-radius:14px;overflow:hidden;border:1px solid rgba(180,74,223,0.2);position:relative}
+#map{height:100%;width:100%}
+.card{background:var(--card);backdrop-filter:blur(12px);border:1px solid rgba(180,74,223,0.15);border-radius:14px;padding:18px;transition:transform .2s}
+.stats-card{text-align:center}
+.stats-num{font-size:3rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+.stats-label{color:var(--muted);font-size:.85rem;margin-top:4px}
+.tabs{display:flex;gap:8px;justify-content:center;margin:12px 0}
+.tab{padding:6px 18px;background:var(--glass);border:1px solid rgba(255,255,255,0.1);border-radius:20px;cursor:pointer;color:var(--muted);font-weight:500;transition:.3s;font-family:inherit;font-size:.85rem}
+.tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.section-title{font-size:1rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.list-item{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:.2s;border-radius:8px;margin-bottom:2px}
+.list-item:hover{background:rgba(180,74,223,0.12);transform:translateX(-3px)}
+.badge{padding:4px 14px;border-radius:14px;font-size:.8rem;font-weight:700;color:#fff}
+.badge-red{background:var(--red)}
+.badge-orange{background:var(--orange)}
+.badge-green{background:var(--green)}
+.badge-accent{background:var(--accent)}
+.risk-bar{height:6px;border-radius:3px;background:rgba(255,255,255,0.1);margin-top:6px;overflow:hidden}
+.risk-fill{height:100%;border-radius:3px;transition:width .6s}
+.back-btn{background:rgba(180,74,223,0.2);border:1px solid var(--primary);color:var(--primary);padding:6px 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:500;transition:.2s;margin-bottom:10px}
+.back-btn:hover{background:var(--primary);color:#fff}
+.detail-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;margin-top:10px}
+.detail-label{color:var(--muted);font-size:.8rem;margin-bottom:4px}
+.detail-value{font-size:.95rem;line-height:1.6}
+.hidden{display:none}
+.loading{text-align:center;padding:40px;color:var(--muted)}
+.loading .spinner{width:40px;height:40px;border:3px solid var(--glass);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.leaflet-popup-content-wrapper{background:var(--card)!important;color:var(--text)!important;border:1px solid rgba(180,74,223,0.3)!important;border-radius:12px!important;backdrop-filter:blur(10px)}
+.leaflet-popup-tip{background:var(--card)!important}
+img.leaflet-marker-icon{filter:hue-rotate(120deg) brightness(0.9)}
+.pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+</style>
 </head>
 <body>
-    <header>
-        <h2 style="margin:0">مركز عمليات HerSafe 🛰️</h2>
-        <button onclick="document.cookie='auth=; Max-Age=0'; location.reload();" style="background:none; border:1px solid #fff; color:#fff; padding:6px 15px; border-radius:20px; cursor:pointer;">خروج</button>
-    </header>
-
-    <div class="main-content">
-        <div class="sidebar">
-            <div class="card stats-item">
-                <h3 style="margin-top:0">التقارير حسب الفترة</h3>
-                <div class="filter-tabs">
-                    <button class="filter-tab active" onclick="setFilter('day')">يومي</button>
-                    <button class="filter-tab" onclick="setFilter('week')">أسبوعي</button>
-                    <button class="filter-tab" onclick="setFilter('month')">شهري</button>
-                </div>
-                <div id="filterCount" class="stats-count">0</div>
-                <p style="color: #666; margin: 5px 0 0 0;">بلاغ في الفترة المحددة</p>
-            </div>
-            
-            <div class="card">
-                <div id="govView">
-                    <h3>المحافظات حسب الخطورة</h3>
-                    <div id="govList" class="gov-list"></div>
-                </div>
-                <div id="areaView" class="area-detail">
-                    <button class="back-btn" onclick="showGovView()">← العودة للمحافظات</button>
-                    <h3 id="areaTitle"></h3>
-                    <div id="areaList"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="map-container">
-            <div id="map"></div>
-        </div>
-    </div>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        const map = L.map('map').setView([35.0, 38.0], 7);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
-
-        let allAlerts = [];
-        let currentFilter = 'day';
-        let currentGov = null;
-
-        function isWithinTimeRange(dateStr, filter) {
-            const date = new Date(dateStr);
-            const now = new Date();
-            const diff = now - date;
-            const day = 24 * 60 * 60 * 1000;
-            
-            if (filter === 'day') return diff <= day;
-            if (filter === 'week') return diff <= 7 * day;
-            if (filter === 'month') return diff <= 30 * day;
-            return true;
-        }
-
-        function setFilter(filter) {
-            currentFilter = filter;
-            document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
-            event.target.classList.add('active');
-            updateDisplay();
-        }
-
-        function updateDisplay() {
-            const filtered = allAlerts.filter(a => isWithinTimeRange(a.created_at, currentFilter));
-            document.getElementById('filterCount').innerText = filtered.length;
-
-            const govCounts = {};
-            filtered.forEach(alert => {
-                const gov = alert.governorate || "غير محدد";
-                govCounts[gov] = (govCounts[gov] || 0) + 1;
-            });
-
-            const sorted = Object.entries(govCounts).sort((a,b) => b[1] - a[1]);
-            const govList = document.getElementById('govList');
-            govList.innerHTML = '';
-            sorted.forEach(([gov, count]) => {
-                const div = document.createElement('div');
-                div.className = 'gov-item';
-                div.innerHTML = \`<span>\${gov}</span><span class="gov-badge">\${count} بلاغ</span>\`;
-                div.onclick = () => showAreaDetail(gov, filtered);
-                govList.appendChild(div);
-            });
-
-            // Update map
-            map.eachLayer(layer => { if (layer instanceof L.Marker) map.removeLayer(layer); });
-            filtered.forEach(alert => {
-                const title = alert.area_detail || "موقع بلاغ";
-                const videoInfo = alert.telegram_video_id 
-                    ? \`<br><b>🎥 فيديو ID:</b> \${alert.telegram_video_id}\` 
-                    : "";
-                const googleMapsUrl = \`https://www.google.com/maps?q=\${alert.latitude},\${alert.longitude}\`;
-                
-                L.marker([alert.latitude, alert.longitude])
-                 .addTo(map)
-                 .bindPopup(\`
-                    <div style="direction: rtl; min-width: 200px;">
-                        <b style="color: #9c27b0;">\${title}</b><br>
-                        <hr style="margin: 8px 0; border: none; border-top: 1px solid #eee;">
-                        <b>📍 المحافظة:</b> \${alert.governorate || 'غير محدد'}<br>
-                        <b>📱 الهاتف:</b> \${alert.phone_number || 'غير متوفر'}<br>
-                        <b>📅 التاريخ:</b> \${new Date(alert.created_at).toLocaleDateString('ar-SA')}<br>
-                        <b>⏰ الوقت:</b> \${new Date(alert.created_at).toLocaleTimeString('ar-SA')}\${videoInfo}
-                        <hr style="margin: 8px 0; border: none; border-top: 1px solid #eee;">
-                        <a href="\${googleMapsUrl}" target="_blank" style="display: block; text-align: center; background: #4285F4; color: white; padding: 8px; border-radius: 6px; text-decoration: none; margin-top: 5px;">🗺️ فتح في خرائط جوجل</a>
-                    </div>
-                \`);
-            });
-        }
-
-        function showAreaDetail(gov, filtered) {
-            currentGov = gov;
-            const areaCounts = {};
-            filtered.forEach(alert => {
-                if ((alert.governorate || "غير محدد") === gov) {
-                    const area = alert.area_detail || "منطقة غير محددة";
-                    areaCounts[area] = (areaCounts[area] || 0) + 1;
-                }
-            });
-
-            const sorted = Object.entries(areaCounts).sort((a,b) => b[1] - a[1]);
-            document.getElementById('areaTitle').innerText = \`محافظة \${gov} - المناطق الأكثر خطراً\`;
-            const areaList = document.getElementById('areaList');
-            areaList.innerHTML = '';
-            sorted.forEach(([area, count]) => {
-                const div = document.createElement('div');
-                div.className = 'area-item';
-                div.innerHTML = \`<span>\${area}</span><span class="gov-badge">\${count} بلاغ</span>\`;
-                areaList.appendChild(div);
-            });
-
-            document.getElementById('govView').style.display = 'none';
-            document.getElementById('areaView').classList.add('active');
-        }
-
-        function showGovView() {
-            document.getElementById('govView').style.display = 'block';
-            document.getElementById('areaView').classList.remove('active');
-        }
-
-        async function fetchData() {
-            const response = await fetch('/api/public/alerts');
-            if (!response.ok) return;
-            allAlerts = await response.json();
-            updateDisplay();
-        }
-
-        fetchData();
-        setInterval(fetchData, 15000);
-    </script>
+<header>
+<h2>🛡️ مركز عمليات HerSafe</h2>
+<button class="logout-btn" onclick="document.cookie='auth=; Max-Age=0'; location.reload();">خروج ←</button>
+</header>
+<div class="main">
+<div class="sidebar">
+<div class="card stats-card">
+<div class="tabs">
+<button class="tab active" onclick="setFilter('day',this)">يومي</button>
+<button class="tab" onclick="setFilter('week',this)">أسبوعي</button>
+<button class="tab" onclick="setFilter('month',this)">شهري</button>
+</div>
+<div class="stats-num" id="totalCount">0</div>
+<div class="stats-label">بلاغ في الفترة المحددة</div>
+</div>
+<div class="card" id="navCard">
+<div id="govView">
+<div class="section-title">📊 المحافظات حسب الخطورة</div>
+<div id="govList"></div>
+</div>
+<div id="areaView" class="hidden">
+<button class="back-btn" onclick="showGovs()">← العودة للمحافظات</button>
+<div class="section-title" id="areaTitle"></div>
+<div id="areaList"></div>
+</div>
+<div id="detailView" class="hidden">
+<button class="back-btn" id="detailBackBtn">← العودة للمناطق</button>
+<div class="section-title" id="detailTitle"></div>
+<div id="detailContent"></div>
+</div>
+</div>
+<div id="aiStatus" class="card hidden">
+<div class="loading"><div class="spinner"></div><span class="pulse">جاري تحليل البيانات بالذكاء الاصطناعي...</span></div>
+</div>
+</div>
+<div class="map-wrap"><div id="map"></div></div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+<script>
+const map=L.map('map').setView([35.0,38.0],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+let allAlerts=[],aiSummary=null,currentFilter='day',currentGov=null;
+const DAY=86400000;
+function age(d){return Date.now()-new Date(d).getTime()}
+function inRange(d,f){const a=age(d);if(f==='day')return a<=DAY;if(f==='week')return a<=7*DAY;return a<=30*DAY}
+function riskColor(r){if(r>=4)return'var(--red)';if(r>=3)return'var(--orange)';return'var(--green)'}
+function riskBadge(r){if(r>=4)return'badge-red';if(r>=3)return'badge-orange';return'badge-green'}
+function setFilter(f,el){currentFilter=f;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');render()}
+function render(){
+const f=allAlerts.filter(a=>inRange(a.created_at,currentFilter));
+document.getElementById('totalCount').textContent=f.length;
+map.eachLayer(l=>{if(l instanceof L.Marker)map.removeLayer(l)});
+f.forEach(a=>{
+const t=a.area_detail||'بلاغ';
+L.marker([a.latitude,a.longitude]).addTo(map).bindPopup('<div style="direction:rtl;min-width:180px"><b style="color:var(--primary)">'+t+'</b><br><b>📍</b> '+(a.governorate||'-')+'<br><b>📱</b> '+(a.phone_number||'-')+'<br><b>📅</b> '+new Date(a.created_at).toLocaleDateString('ar-SA')+'</div>');
+});
+if(aiSummary){renderGovs()}else{renderGovsFromData(f)}
+}
+function renderGovsFromData(f){
+const gc={};f.forEach(a=>{const g=a.governorate||'غير محدد';gc[g]=(gc[g]||0)+1});
+const s=Object.entries(gc).sort((a,b)=>b[1]-a[1]);
+const el=document.getElementById('govList');el.innerHTML='';
+s.forEach(([g,c])=>{el.innerHTML+='<div class="list-item" onclick="showAreasData(\\''+g+'\\')"><span>'+g+'</span><span class="badge badge-accent">'+c+' بلاغ</span></div>'});
+showPanel('govView');
+}
+function renderGovs(){
+const el=document.getElementById('govList');el.innerHTML='';
+const govs=Object.entries(aiSummary).sort((a,b)=>(b[1].risk_level||0)-(a[1].risk_level||0));
+govs.forEach(([g,d])=>{
+const r=d.risk_level||1;
+el.innerHTML+='<div class="list-item" onclick="showAreas(\\''+g+'\\')"><div><div style="font-weight:600">'+g+'</div><div class="risk-bar" style="width:120px"><div class="risk-fill" style="width:'+r*20+'%;background:'+riskColor(r)+'"></div></div></div><div style="text-align:left"><span class="badge '+riskBadge(r)+'">'+(d.risk_label||r)+' </span><div style="font-size:.75rem;color:var(--muted);margin-top:2px">'+d.total+' بلاغ</div></div></div>'});
+showPanel('govView');
+}
+function showAreas(g){
+currentGov=g;
+const gd=aiSummary[g];if(!gd)return;
+document.getElementById('areaTitle').innerHTML='📍 '+g+' - المناطق';
+const el=document.getElementById('areaList');el.innerHTML='';
+const areas=Object.entries(gd.areas||{}).sort((a,b)=>(b[1].risk||0)-(a[1].risk||0));
+areas.forEach(([a,d])=>{
+const r=d.risk||1;
+el.innerHTML+='<div class="list-item" onclick="showDetail(\\''+g+'\\',\\''+a+'\\')"><div><div style="font-weight:500">'+a+'</div></div><div style="text-align:left"><span class="badge '+riskBadge(r)+'">'+d.count+' بلاغ</span></div></div>'});
+showPanel('areaView');
+}
+function showAreasData(g){
+currentGov=g;
+const f=allAlerts.filter(a=>inRange(a.created_at,currentFilter)&&a.governorate===g);
+const ac={};f.forEach(a=>{const ar=a.area_detail||'غير محدد';ac[ar]=(ac[ar]||0)+1});
+document.getElementById('areaTitle').innerHTML='📍 '+g+' - المناطق';
+const el=document.getElementById('areaList');el.innerHTML='';
+Object.entries(ac).sort((a,b)=>b[1]-a[1]).forEach(([a,c])=>{
+el.innerHTML+='<div class="list-item"><span>'+a+'</span><span class="badge badge-accent">'+c+' بلاغ</span></div>'});
+showPanel('areaView');
+}
+function showDetail(g,a){
+const gd=aiSummary[g];if(!gd||!gd.areas||!gd.areas[a])return;
+const d=gd.areas[a];const r=d.risk||1;
+document.getElementById('detailTitle').innerHTML='🔍 '+a;
+document.getElementById('detailBackBtn').onclick=()=>showAreas(g);
+document.getElementById('detailContent').innerHTML=
+'<div style="display:flex;gap:10px;margin-bottom:12px"><div class="card" style="flex:1;text-align:center;padding:12px"><div style="font-size:2rem;font-weight:800;color:var(--accent)">'+d.count+'</div><div style="font-size:.75rem;color:var(--muted)">بلاغ</div></div><div class="card" style="flex:1;text-align:center;padding:12px"><div style="font-size:2rem;font-weight:800;color:'+riskColor(r)+'">'+r+'/5</div><div style="font-size:.75rem;color:var(--muted)">'+(d.risk_label||'مستوى الخطورة')+'</div></div></div>'+
+'<div class="detail-card"><div class="detail-label">⚠️ الأسباب المحتملة</div><div class="detail-value">'+(d.causes||'لا تتوفر بيانات')+'</div></div>'+
+'<div class="detail-card" style="margin-top:8px"><div class="detail-label">✅ التوصيات الأمنية</div><div class="detail-value">'+(d.recommendations||'لا تتوفر بيانات')+'</div></div>';
+showPanel('detailView');
+}
+function showGovs(){if(aiSummary)renderGovs();else render();showPanel('govView')}
+function showPanel(id){['govView','areaView','detailView'].forEach(v=>{document.getElementById(v).classList.add('hidden')});document.getElementById(id).classList.remove('hidden')}
+async function fetchData(){
+const r=await fetch('/api/public/alerts');if(!r.ok)return;allAlerts=await r.json();render()}
+async function fetchAI(){
+const r=await fetch('/api/ai/analysis');if(!r.ok)return;
+const d=await r.json();
+if(d.summary){aiSummary=d.summary;document.getElementById('aiStatus').classList.add('hidden');render()}
+else if(d.status==='pending'){document.getElementById('aiStatus').classList.remove('hidden');setTimeout(fetchAI,5000)}
+}
+fetchData();fetchAI();setInterval(fetchData,30000);
+<\/script>
 </body>
 </html>`;
 }
@@ -749,3 +925,4 @@ async function handleTelegramConfirm(request, env, corsHeaders) {
         });
     }
 }
+
